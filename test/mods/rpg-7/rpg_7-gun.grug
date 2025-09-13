@@ -1,0 +1,28 @@
+counter_id: id = spawn_counter("shots_counter")
+
+on_spawn() {
+    set_gun_name("RPG-7")
+    set_gun_sprite_path("rpg-7.png")
+    set_gun_rounds_per_minute(120)
+    set_gun_companion("vanilla:crate")
+
+    map_set_i32(counter_id, "shots", 0)
+}
+
+on_despawn() {
+    despawn_entity(counter_id)
+}
+
+on_fire() {
+    print_string("RPG-7")
+    spawn_bullet("pg_7vl", 0.0, 0.0, 0.0, 100.0)
+
+    if map_has_i32(counter_id, "shots") {
+        shots: i32 = map_get_i32(counter_id, "shots")
+        map_set_i32(counter_id, "shots", shots + 1)
+    }
+}
+
+helper_hi(name: string) string {
+    print(name)
+}

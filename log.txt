@@ -1,0 +1,41 @@
+LSP START
+Got message of length: 4441
+Connected with the client, bitch
+Server { root_path: "/home/xijnim/Projects/grug-ls/test", client_capabilities: ClientCapabilities { text_document: TextDocumentClientCapabilities { synchronization: TextDocumentSyncClientCapabilities { dynamic_registration: false } } }, file_system: In Memory File System, document_map: {} }
+Sent this init response: {
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "capabilities": {
+      "positionEncoding": "utf-8",
+      "textDocumentSync": 1,
+      "hoverProvider": true
+    },
+    "serverInfo": {
+      "name": "Grug-LS",
+      "version": "1.0.0"
+    }
+  }
+}
+Got message of length: 52
+Client connection was established!
+Got message of length: 831
+Opened the file: "/home/xijnim/Projects/grug-ls/test/mods/rpg-7/rpg_7-gun.grug"
+Document { content: [99, 111, 117, 110, 116, 101, 114, 95, 105, 100, 58, 32, 105, 100, 32, 61, 32, 115, 112, 97, 119, 110, 95, 99, 111, 117, 110, 116, 101, 114, 40, 34, 115, 104, 111, 116, 115, 95, 99, 111, 117, 110, 116, 101, 114, 34, 41, 10, 10, 111, 110, 95, 115, 112, 97, 119, 110, 40, 41, 32, 123, 10, 32, 32, 32, 32, 115, 101, 116, 95, 103, 117, 110, 95, 110, 97, 109, 101, 40, 34, 82, 80, 71, 45, 55, 34, 41, 10, 32, 32, 32, 32, 115, 101, 116, 95, 103, 117, 110, 95, 115, 112, 114, 105, 116, 101, 95, 112, 97, 116, 104, 40, 34, 114, 112, 103, 45, 55, 46, 112, 110, 103, 34, 41, 10, 32, 32, 32, 32, 115, 101, 116, 95, 103, 117, 110, 95, 114, 111, 117, 110, 100, 115, 95, 112, 101, 114, 95, 109, 105, 110, 117, 116, 101, 40, 49, 50, 48, 41, 10, 32, 32, 32, 32, 115, 101, 116, 95, 103, 117, 110, 95, 99, 111, 109, 112, 97, 110, 105, 111, 110, 40, 34, 118, 97, 110, 105, 108, 108, 97, 58, 99, 114, 97, 116, 101, 34, 41, 10, 10, 32, 32, 32, 32, 109, 97, 112, 95, 115, 101, 116, 95, 105, 51, 50, 40, 99, 111, 117, 110, 116, 101, 114, 95, 105, 100, 44, 32, 34, 115, 104, 111, 116, 115, 34, 44, 32, 48, 41, 10, 125, 10, 10, 111, 110, 95, 100, 101, 115, 112, 97, 119, 110, 40, 41, 32, 123, 10, 32, 32, 32, 32, 100, 101, 115, 112, 97, 119, 110, 95, 101, 110, 116, 105, 116, 121, 40, 99, 111, 117, 110, 116, 101, 114, 95, 105, 100, 41, 10, 125, 10, 10, 111, 110, 95, 102, 105, 114, 101, 40, 41, 32, 123, 10, 32, 32, 32, 32, 112, 114, 105, 110, 116, 95, 115, 116, 114, 105, 110, 103, 40, 34, 82, 80, 71, 45, 55, 34, 41, 10, 32, 32, 32, 32, 115, 112, 97, 119, 110, 95, 98, 117, 108, 108, 101, 116, 40, 34, 112, 103, 95, 55, 118, 108, 34, 44, 32, 48, 46, 48, 44, 32, 48, 46, 48, 44, 32, 48, 46, 48, 44, 32, 49, 48, 48, 46, 48, 41, 10, 10, 32, 32, 32, 32, 105, 102, 32, 109, 97, 112, 95, 104, 97, 115, 95, 105, 51, 50, 40, 99, 111, 117, 110, 116, 101, 114, 95, 105, 100, 44, 32, 34, 115, 104, 111, 116, 115, 34, 41, 32, 123, 10, 32, 32, 32, 32, 32, 32, 32, 32, 115, 104, 111, 116, 115, 58, 32, 105, 51, 50, 32, 61, 32, 109, 97, 112, 95, 103, 101, 116, 95, 105, 51, 50, 40, 99, 111, 117, 110, 116, 101, 114, 95, 105, 100, 44, 32, 34, 115, 104, 111, 116, 115, 34, 41, 10, 32, 32, 32, 32, 32, 32, 32, 32, 109, 97, 112, 95, 115, 101, 116, 95, 105, 51, 50, 40, 99, 111, 117, 110, 116, 101, 114, 95, 105, 100, 44, 32, 34, 115, 104, 111, 116, 115, 34, 44, 32, 115, 104, 111, 116, 115, 32, 43, 32, 49, 41, 10, 32, 32, 32, 32, 125, 10, 125, 10, 10, 104, 101, 108, 112, 101, 114, 95, 104, 105, 40, 110, 97, 109, 101, 58, 32, 115, 116, 114, 105, 110, 103, 41, 32, 115, 116, 114, 105, 110, 103, 32, 123, 10, 32, 32, 32, 32, 112, 114, 105, 110, 116, 40, 110, 97, 109, 101, 41, 10, 125, 10], tree: {Tree {Node source_file (0, 0) - (28, 0)}}, global_vars: [Variable { name: "counter_id", type: ID }], helpers: [Function { name: "helper_hi", params: [Variable { name: "name", type: String }], ret_type: Some(String) }] }
+Got message of length: 195
+Got message of length: 844
+Updated file: "/home/xijnim/Projects/grug-ls/test/mods/rpg-7/rpg_7-gun.grug"
+Got message of length: 845
+Updated file: "/home/xijnim/Projects/grug-ls/test/mods/rpg-7/rpg_7-gun.grug"
+Got message of length: 846
+Updated file: "/home/xijnim/Projects/grug-ls/test/mods/rpg-7/rpg_7-gun.grug"
+Got message of length: 847
+Updated file: "/home/xijnim/Projects/grug-ls/test/mods/rpg-7/rpg_7-gun.grug"
+Got message of length: 846
+Updated file: "/home/xijnim/Projects/grug-ls/test/mods/rpg-7/rpg_7-gun.grug"
+Got message of length: 845
+Updated file: "/home/xijnim/Projects/grug-ls/test/mods/rpg-7/rpg_7-gun.grug"
+Got message of length: 835
+Updated file: "/home/xijnim/Projects/grug-ls/test/mods/rpg-7/rpg_7-gun.grug"
+Got message of length: 153
+Saved file
