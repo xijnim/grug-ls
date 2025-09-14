@@ -43,8 +43,8 @@ impl Server {
         document: &Document,
         node: &tree_sitter::Node<'_>,
     ) -> Option<String> {
+        let range = node.byte_range();
         if node.kind() == "identifier" {
-            let range = node.byte_range();
             let name = &document.content[range];
             let spot_info = get_spot_info(document, node);
             for var in spot_info.variables.into_iter() {
@@ -53,41 +53,30 @@ impl Server {
                 }
             }
 
-            'a: {
-                let name = match String::from_utf8(name.to_vec()).ok() {
-                    Some(name) => name,
-                    None => break 'a,
-                };
+            let name = String::from_utf8(name.to_vec()).ok()?;
 
-                if let Some(func) = { mod_api.game_functions.get(&name) } {
-                    let mut text = format!("{}(", name);
-                    for (idx, arg) in func.arguments.iter().enumerate() {
-                        let name = match arg {
-                            GrugArgument::String { name }
-                            | GrugArgument::I32 { name }
-                            | GrugArgument::F32 { name }
-                            | GrugArgument::ID { name }
-                            | GrugArgument::Bool { name }
-                            | GrugArgument::Resource { name, .. }
-                            | GrugArgument::Entity { name, .. } => name,
-                        };
-                        text.push_str(name);
-                        text.push_str(": ");
-                        text.push_str(match arg {
-                            GrugArgument::String { .. } => "string",
-                            GrugArgument::I32 { .. } => "i32",
-                            GrugArgument::F32 { .. } => "f32",
-                            GrugArgument::ID { .. } => "id",
-                            GrugArgument::Bool { .. } => "bool",
-                            GrugArgument::Resource { .. } => "resource",
-                            GrugArgument::Entity { .. } => "entity",
-                        });
-                        if idx < func.arguments.len() - 1 {
-                            text.push_str(", ");
-                        }
-                    }
-                    text.push(')');
+            if let Some(func) = mod_api.game_functions.get(&name) {
+                let mut text = func.format(&name);
+                text.push_str("\n\n");
 
+                text.push_str(&func.description);
+
+                return Some(text);
+            }
+        } else if node.kind() == "helper_identifier" {
+            let name = &document.content[range];
+            
+            if let Some(helper) = document.helpers.iter().find(|helper| helper.name.as_bytes() == name) {
+                return Some(helper.format());
+            }
+        } else if node.kind() == "on_identifier" {
+            let name = String::from_utf8(document.content[range].to_vec()).ok()?;
+            if let Some(entity) = mod_api.entities.get(&document.entity_type) {
+                if let Some(on_func) = entity.on_functions.get(&name) {
+                    let mut text = name;
+                    text.push_str("\n\n");
+
+                    text.push_str(&on_func.description);
                     return Some(text);
                 }
             }

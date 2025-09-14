@@ -5,6 +5,10 @@ on_spawn() {
     set_gun_sprite_path("rpg-7.png")
     set_gun_rounds_per_minute(120)
     set_gun_companion("vanilla:crate")
+    
+    shots: i32 = 0
+    thing: string = "h"
+    file: resource = "png"
 
     map_set_i32(counter_id, "shots", 0)
 }

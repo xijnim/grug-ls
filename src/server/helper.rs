@@ -42,7 +42,6 @@ impl ServerWorker {
         if let Ok(Ok(event)) = recv {
             if let notify::EventKind::Access(_) = event.kind {
             } else {
-                info!("{:?}", event);
                 if let Ok(json) = std::fs::read_to_string(&self.mod_api_path) {
                     let mod_api: Result<ModApi, serde_json::Error> = serde_json::from_str(&json);
 

@@ -2,6 +2,8 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
+use crate::server::document::Type;
+
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub struct GrugOnFunction {
     pub description: String,
@@ -15,13 +17,13 @@ pub struct GrugEntity {
 
 #[derive(Serialize, Deserialize)]
 #[derive(Debug, PartialEq, Eq)]
-pub enum GrugType {
+pub enum GrugDetailedType {
     #[serde(rename = "string")]
     String,
-    #[serde(rename = "i32")]
-    I32,
     #[serde(rename = "f32")]
     F32,
+    #[serde(rename = "i32")]
+    I32,
     #[serde(rename = "id")]
     ID,
     #[serde(rename = "bool")]
@@ -30,6 +32,20 @@ pub enum GrugType {
     Resource { resource_extension: String },
     #[serde(rename = "entity")]
     Entity { entity_type: String },
+}
+
+impl GrugDetailedType {
+    pub fn as_type(&self) -> Type {
+        match self {
+            GrugDetailedType::ID => Type::ID,
+            GrugDetailedType::F32 => Type::F32,
+            GrugDetailedType::Bool => Type::Bool,
+            GrugDetailedType::Entity { entity_type } => Type::Entity(entity_type.to_string()),
+            GrugDetailedType::I32 => Type::I32,
+            GrugDetailedType::String => Type::String,
+            GrugDetailedType::Resource { .. } => Type::Resource,
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize)]
@@ -57,11 +73,63 @@ pub enum GrugArgument {
     Entity { name: String, entity_type: String },
 }
 
+impl GrugArgument {
+    pub fn get_name(&self) -> &str {
+        match self {
+            GrugArgument::String { name }
+            | GrugArgument::I32 { name }
+            | GrugArgument::F32 { name }
+            | GrugArgument::ID { name }
+            | GrugArgument::Bool { name }
+            | GrugArgument::Resource { name, .. }
+            | GrugArgument::Entity { name, .. } => name,
+        }
+    }
+
+    pub fn get_type(&self) -> Type {
+        match self {
+            GrugArgument::String { .. } => Type::String,
+            GrugArgument::I32 { .. } => Type::I32,
+            GrugArgument::F32 { .. } => Type::F32,
+            GrugArgument::ID { .. } => Type::ID,
+            GrugArgument::Bool { .. } => Type::Bool,
+            GrugArgument::Resource { .. } => Type::String,
+            GrugArgument::Entity { .. } => Type::String,
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub struct GrugGameFunction {
     pub description: String,
     pub arguments: Vec<GrugArgument>,
-    pub return_type: Option<GrugType>,
+    pub return_type: Option<GrugDetailedType>,
+}
+
+impl GrugGameFunction {
+    pub fn format(&self, name: &str) -> String {
+        let mut text = format!("{}(", name);
+        for (idx, arg) in self.arguments.iter().enumerate() {
+            text.push_str(arg.get_name());
+
+            text.push_str(": ");
+
+            text.push_str(arg.get_type().as_str());
+
+            if idx < self.arguments.len()-1 {
+                text.push_str(", ");
+            }
+        }
+
+        text.push(')');
+
+        if let Some(ret_type) = &self.return_type {
+            text.push(' ');
+            text.push_str(ret_type.as_type().as_str());
+        }
+
+        text
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
@@ -517,7 +585,7 @@ fn mod_api_test() {
             }),
             ("spawn_counter".to_string(), GrugGameFunction {
                 description: "Spawns a counter, and returns its ID.".to_string(),
-                return_type: Some(GrugType::ID),
+                return_type: Some(GrugDetailedType::ID),
                 arguments: vec![
                     GrugArgument::Entity { name: "path".to_string(), entity_type: "counter".to_string() }
                 ]
@@ -531,7 +599,7 @@ fn mod_api_test() {
             }),
             ("rand".to_string(), GrugGameFunction {
                 description: "Gets a random f32 between min and max.".to_string(),
-                return_type: Some(GrugType::F32),
+                return_type: Some(GrugDetailedType::F32),
                 arguments: vec![
                     GrugArgument::F32{name: "min".to_string()},
                     GrugArgument::F32{name: "max".to_string()},
@@ -574,7 +642,7 @@ fn mod_api_test() {
             }),
             ("map_has_i32".to_string(), GrugGameFunction {
                 description: "Returns whether an entity's i32 map contains a key.".to_string(),
-                return_type: Some(GrugType::Bool),
+                return_type: Some(GrugDetailedType::Bool),
                 arguments: vec![
                     GrugArgument::ID {name: "entity_id".to_string()},
                     GrugArgument::String {name: "key".to_string()}
@@ -582,7 +650,7 @@ fn mod_api_test() {
             }),
             ("map_get_i32".to_string(), GrugGameFunction {
                 description: "Returns the value of a key in an entity's i32 map. Note that if the map doesn't contain the key, the game will throw an error, so make sure to call map_has_i32() first!".to_string(),
-                return_type: Some(GrugType::I32),
+                return_type: Some(GrugDetailedType::I32),
                 arguments: vec![
                     GrugArgument::ID {name: "entity_id".to_string()},
                     GrugArgument::String {name: "key".to_string()},

@@ -9,13 +9,10 @@ use vfs::FileSystem;
 
 use crate::rpc::Notification;
 
-use crate::server::{
-    document::Document,
-    Server,
-};
+use crate::server::{Server, document::Document};
 
-use log::info;
 use log::error;
+use log::info;
 
 type DocumentURI = String;
 
@@ -91,6 +88,7 @@ impl Server {
 
         let path = &req.params.text_document.uri["file.//".len()..];
         let path = PathBuf::from_str(path).unwrap();
+        let file_name = path.file_name().unwrap().to_str().unwrap().to_string();
 
         info!("Opened the file: {:?}", path.to_str().unwrap());
 
@@ -103,18 +101,18 @@ impl Server {
 
             if is_file {
                 if self.file_system.exists(path).unwrap() {
-                    error!(
-                        "Trying to create file that already exists: {}",
-                        path
-                    );
+                    error!("Trying to create file that already exists: {}", path);
                     break;
                 }
 
                 let mut file = self.file_system.create_file(path).unwrap();
-                file.write(path.as_bytes())
-                    .unwrap();
+                file.write(path.as_bytes()).unwrap();
 
-                let document = Document::new(parser, req.params.text_document.text.as_bytes().to_vec());
+                let document = Document::new(
+                    parser,
+                    req.params.text_document.text.as_bytes().to_vec(),
+                    file_name,
+                );
                 info!("New document: {:?}", document);
                 self.document_map.insert(path.to_string(), document);
                 break;
@@ -134,10 +132,15 @@ impl Server {
         assert!(req.params.text_document.uri.starts_with("file://"));
 
         let path = &req.params.text_document.uri["file.//".len()..];
+        let file_name = path.split("/").last().unwrap().to_string();
 
         info!("Updated file: {:?}", path);
 
         let document = self.document_map.get_mut(path).unwrap();
-        *document = Document::new(parser, req.params.content_changes[0].text.as_bytes().to_vec());
+        *document = Document::new(
+            parser,
+            req.params.content_changes[0].text.as_bytes().to_vec(),
+            file_name
+        );
     }
 }
