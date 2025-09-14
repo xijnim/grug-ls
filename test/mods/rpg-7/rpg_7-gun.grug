@@ -24,5 +24,4 @@ on_fire() {
 }
 
 helper_hi(name: string) string {
-    print(name)
 }

@@ -295,10 +295,11 @@
 					"type": "string"
 				},
 				{
-					"name": "value",
+					    "name": "value",
 					"type": "i32"
 				}
-			]
+		    ]
+
 		}
-	}
+    }
 }
