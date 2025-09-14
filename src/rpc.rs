@@ -4,7 +4,8 @@ use std::{
 
 use serde::{Deserialize, Serialize};
 
-use crate::Logger;
+use log::info;
+use log::error;
 
 #[derive(Serialize, Deserialize)]
 pub struct ResponseMessage<T> {
@@ -73,14 +74,14 @@ impl<'a> Rpc {
         }
     }
 
-    pub fn recv(&'a mut self, logger: &mut Logger) -> &'a [u8] {
+    pub fn recv(&'a mut self) -> &'a [u8] {
         let mut bytes_read = 0;
         loop {
             let amt = self.reader.read(&mut self.buffer[bytes_read..]).unwrap();
             bytes_read += amt;
 
             if bytes_read == self.buffer.len() {
-                logger.log_str("Increasing recv buffer size");
+                info!("Increasing recv buffer size");
                 self.buffer.resize(self.buffer.len(), 0);
             }
 
@@ -106,7 +107,7 @@ impl<'a> Rpc {
                     error_msg.push_str(&format!(": {}", text));
                 }
 
-                logger.log_str(error_msg);
+                error!("{:?}", error_msg);
                 panic!();
             }
 
@@ -120,7 +121,7 @@ impl<'a> Rpc {
                 continue;
             }
 
-            logger.log_str(format!("Got message of length: {}\n", length));
+            info!("Got message of length: {}\n", length);
 
             let content = &self.buffer
                 [content_length_bytes.len() + 4..content_length_bytes.len() + 4 + length];

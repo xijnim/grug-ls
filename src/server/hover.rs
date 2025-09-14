@@ -4,7 +4,7 @@ use vfs::FileSystem;
 use crate::{
     rpc::{RequestMessage, ResponseMessage, Rpc},
     server::{
-        document::{parser_utils, Document, Variable}, text_sync::{Position, Range, TextDocumentPositionParams}, utils::get_spot_info, Server
+        document::{parser_utils, Document, Variable}, mod_api::{GrugArgument, ModApi}, text_sync::{Position, Range, TextDocumentPositionParams}, utils::get_spot_info, Server
     },
 };
 
@@ -34,7 +34,11 @@ impl Server {
 
         rpc.send(json);
     }
-    fn get_hover(document: &Document, node: &tree_sitter::Node<'_>) -> Option<String> {
+    fn get_hover(
+        mod_api: &ModApi,
+        document: &Document,
+        node: &tree_sitter::Node<'_>,
+    ) -> Option<String> {
         if node.kind() == "identifier" {
             let range = node.byte_range();
             let name = &document.content[range];
@@ -42,6 +46,51 @@ impl Server {
             for var in spot_info.variables.into_iter() {
                 if var.name.as_bytes() == name {
                     return Some(format!("{}: {}", var.name, var.r#type.as_str()));
+                }
+            }
+
+            'a: {
+                let name = match String::from_utf8(name.to_vec()).ok() {
+                    Some(name) => name,
+                    None => break 'a,
+                };
+
+                if let Some(func) = {
+                    mod_api
+                        .game_functions
+                        .get(&name)
+                } {
+                    let mut text = format!("{}(", name);
+                    for (idx, arg) in func.arguments.iter().enumerate() {
+                        let name = match arg {
+                            GrugArgument::String { name } |
+                            GrugArgument::I32 { name } |
+                            GrugArgument::F32 { name } |
+                            GrugArgument::ID { name } |
+
+                            GrugArgument::Bool { name } |
+
+                            GrugArgument::Resource { name, .. } |
+                            GrugArgument::Entity { name, .. } => name,
+                        };
+                        text.push_str(name);
+                        text.push_str(": ");
+                        text.push_str(match arg {
+                            GrugArgument::String { .. } => "string",
+                            GrugArgument::I32 { .. } => "i32",
+                            GrugArgument::F32 { .. } => "f32",
+                            GrugArgument::ID { .. } => "id",
+                            GrugArgument::Bool { .. } => "bool",
+                            GrugArgument::Resource { .. } => "resource",
+                            GrugArgument::Entity { .. } => "entity",
+                        });
+                        if idx < func.arguments.len()-1 {
+                            text.push_str(", ");
+                        }
+                    }
+                    text.push(')');
+
+                    return Some(text);
                 }
             }
         }
@@ -75,7 +124,7 @@ impl Server {
 
         let range = node.range();
 
-        let content = Self::get_hover(document, &node);
+        let content = Self::get_hover(&self.mod_api, document, &node);
         if content.is_none() {
             Server::send_null(req.id, rpc);
             return;

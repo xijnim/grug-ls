@@ -3,17 +3,26 @@ use tree_sitter::Parser;
 use vfs::MemoryFS;
 
 use crate::{
-    rpc::{Notification, RequestMessage, ResponseMessage, Rpc}, server::{
-        document::Document, init::{InitResponse, InitResult, ServerCapabilities, ServerInfo}, text_sync::{DidChangeNotificationParams, DidOpenNotificationParams, TextDocumentPositionParams}
-    }, LoggableResult, Logger
+    rpc::{Notification, RequestMessage, ResponseMessage, Rpc},
+    server::{
+        completion::CompletionParams, document::Document, helper::{spawn_worker, ServerUpdate}, init::{InitResponse, InitResult, ServerCapabilities, ServerInfo}, mod_api::ModApi, text_sync::{
+            DidChangeNotificationParams, DidOpenNotificationParams, TextDocumentPositionParams,
+        }
+    },
 };
-use std::{collections::HashMap, default, path::PathBuf, process};
+use std::{collections::HashMap, default, path::PathBuf, process, sync::mpsc::Receiver};
 
-mod init;
-mod text_sync;
-mod hover;
 mod document;
+mod helper;
+mod hover;
+mod init;
+mod mod_api;
+mod text_sync;
 mod utils;
+mod completion;
+
+use log::error;
+use log::info;
 
 pub enum ServerWrapper {
     Inactive,
@@ -31,50 +40,49 @@ impl ServerWrapper {
         ServerWrapper::Inactive
     }
 
-    pub fn handle_message(
-        &mut self,
-        json: String,
-        logger: &mut Logger,
-        rpc: &mut Rpc,
-        parser: &mut Parser,
-    ) {
+    pub fn handle_message(&mut self, json: String, rpc: &mut Rpc, parser: &mut Parser) {
         let message: Result<serde_json::Value, _> = serde_json::from_str(&json);
         if let Err(ref error) = message {
-            logger.log_str(format!("Error parsing json: {:?}", error));
-            logger.log_str(format!("The received json was: {:?}", json));
+            error!("Error parsing json:\nSRC: {}ERROR: {:?}", json, error);
             panic!();
         }
 
         let message = message.unwrap();
 
         if message.get("method").is_none() {
-            logger.log_str("Received message from the client with no method");
+            error!("Received message from the client with not method");
             panic!();
         }
 
         let method = message.get("method").unwrap();
         if !method.is_string() {
-            logger.log_str("The method property of the client message wasnt a string");
+            error!("The method property of the client message wasnt a string");
             panic!();
         }
         let method = method.as_str().unwrap();
 
-        let server = match self {
+        let mut server = match self {
             ServerWrapper::Inactive | ServerWrapper::Shutdown => None,
             ServerWrapper::Active(server) => Some(server),
         };
 
+        if let Some(ref mut server) = server {
+            server.handle_worker_messages();
+        }
+
         match method {
             "initialize" => {
                 if let ServerWrapper::Active(_) = self {
-                    logger.log_str("Client tried to initialize twice");
+                    error!("Client tried to initialize twice");
                     panic!();
                 };
-                logger.log_str("Connected with the client, bitch");
+                info!("Connected with the client");
 
                 let id = message.get("id").unwrap().clone();
-                let server = Server::from_request(logger, message);
-                logger.log_str(format!("{:?}", server));
+                let server = Server::from_request(message);
+
+                info!("Started new server: {:?}", server);
+
                 *self = ServerWrapper::Active(server);
 
                 let response = ResponseMessage::new(
@@ -91,43 +99,44 @@ impl ServerWrapper {
                             text_document_sync: 1,
 
                             hover_provider: true,
+                            completion_provider: std::collections::HashMap::new(),
                         },
                     },
                 );
                 let res_json = serde_json::to_string_pretty(&response);
                 if let Err(ref error) = res_json {
-                    logger.log_str(format!("Error encoding response json: {:?}", error));
+                    error!("Error encoding response json: {:?}", error);
+                    panic!();
                 }
+
                 let res_json = res_json.unwrap();
 
                 rpc.send(&*res_json);
-                logger.log_str(format!("Sent this init response: {}", res_json));
+                info!("Sent this init response: {}", res_json);
 
                 return;
             }
             "initialized" => {
-                logger.log_str("Client connection was established!");
+                info!("Client connection was established!");
             }
             "textDocument/didOpen" => {
                 let did_open_notification: Notification<DidOpenNotificationParams> =
-                    serde_json::from_value(message)
-                        .unwrap_or_log(logger, "Did Open notification parse error");
+                    serde_json::from_value(message).unwrap();
 
                 server
-                    .unwrap_or_log(logger, "didOpen while inactive server")
-                    .handle_did_open(logger, did_open_notification, parser);
+                    .unwrap()
+                    .handle_did_open(did_open_notification, parser);
             }
             "textDocument/didChange" => {
                 let did_change_notification: Notification<DidChangeNotificationParams> =
-                    serde_json::from_value(message)
-                        .unwrap_or_log(logger, "Did Change notification parse error");
+                    serde_json::from_value(message).unwrap();
 
                 server
-                    .unwrap_or_log(logger, "didChange while inactive server")
-                    .handle_did_change(logger, did_change_notification, parser);
+                    .unwrap()
+                    .handle_did_change(did_change_notification, parser);
             }
             "textDocument/didSave" => {
-                logger.log_str("Saved file");
+                info!("Saved file");
             }
             "shutdown" => {
                 *self = ServerWrapper::Shutdown;
@@ -137,29 +146,31 @@ impl ServerWrapper {
 
                 rpc.send(serde_json::to_string_pretty(&res).unwrap());
 
-                logger.log_str("Shutting down");
+                info!("Shutting down");
                 std::process::exit(0);
             }
             "textDocument/hover" => {
                 let req: RequestMessage<TextDocumentPositionParams> =
-                    serde_json::from_value(message)
-                    .unwrap_or_log(logger, "textDocument/hover parse error");
+                    serde_json::from_value(message).unwrap();
 
-                
-                server
-                    .unwrap_or_log(logger, "didHover while inactive server")
-                    .handle_hover(req, rpc);
+                server.unwrap().handle_hover(req, rpc);
+            }
+            "textDocument/completion" => {
+                let req: RequestMessage<CompletionParams> =
+                    serde_json::from_value(message).unwrap();
+
+                server.unwrap().handle_completion(req, rpc);
             }
             "exit" => {
                 if let ServerWrapper::Shutdown = self {
-                    logger.log_str("Exiting with 0");
+                    info!("Exiting with 0");
                     std::process::exit(0);
                 } else {
-                    logger.log_str("Exiting with 1");
+                    error!("Exiting with 0");
                     std::process::exit(1);
                 }
             }
-            _ => logger.log_str(format!("Unknown message method: {}", method)),
+            _ => error!("Unknown message method: {}", method),
         }
     }
 }
@@ -171,15 +182,13 @@ struct ClientCapabilities {
     text_document: TextDocumentClientCapabilities,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-#[derive(Default)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 struct TextDocumentClientCapabilities {
     #[serde(default)]
     synchronization: TextDocumentSyncClientCapabilities,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-#[derive(Default)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 struct TextDocumentSyncClientCapabilities {
     #[serde(rename = "dynamicRegistration")]
     #[serde(default)]
@@ -190,6 +199,8 @@ struct TextDocumentSyncClientCapabilities {
 pub struct Server {
     root_path: PathBuf,
     client_capabilities: ClientCapabilities,
+    mod_api: ModApi,
     file_system: MemoryFS,
     document_map: HashMap<String, Document>,
+    messages_chan: Receiver<ServerUpdate>,
 }

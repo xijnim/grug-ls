@@ -1,5 +1,4 @@
 use std::{
-    collections::HashMap,
     path::{Path, PathBuf},
     str::FromStr,
 };
@@ -8,7 +7,15 @@ use serde::{Deserialize, Serialize};
 use tree_sitter::Parser;
 use vfs::FileSystem;
 
-use crate::{rpc::Notification, server::{document::Document, Server}, LoggableResult, Logger};
+use crate::rpc::Notification;
+
+use crate::server::{
+    document::Document,
+    Server,
+};
+
+use log::info;
+use log::error;
 
 type DocumentURI = String;
 
@@ -73,76 +80,9 @@ pub struct TextDocumentContentChangeEvent {
     text: String,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct GrugOnFunction {
-    pub description: String,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct GrugEntity {
-    pub description: String,
-    pub on_functions: Vec<GrugOnFunction>,
-}
-
-#[derive(Serialize, Deserialize)]
-#[serde(tag = "type")]
-#[derive(Debug)]
-pub enum GrugType {
-    String,
-    I32,
-    F32,
-    Resource { resource_extension: String },
-    Entity { entity_type: String },
-}
-
-#[derive(Serialize, Deserialize)]
-#[serde(tag = "type")]
-#[derive(Debug)]
-pub enum GrugArgument {
-    #[serde(rename = "string")]
-    String { name: String },
-    #[serde(rename = "i32")]
-    I32 { name: String },
-    #[serde(rename = "f32")]
-    F32 { name: String },
-    #[serde(rename = "resource")]
-    Resource {
-        name: String,
-        resource_extension: String,
-    },
-    #[serde(rename = "entity")]
-    Entity { name: String, entity_type: String },
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct GrugGameFunction {
-    pub description: String,
-    pub arguments: Vec<GrugArgument>,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct ModApi {
-    pub entities: HashMap<String, GrugEntity>,
-    pub game_functions: HashMap<String, GrugGameFunction>,
-}
-
-#[derive(Debug)]
-pub struct GrugModInfo {
-    pub name: String,
-    pub version: String,
-    pub game_version: String,
-    pub author: String,
-}
-
-#[derive(Debug)]
-pub struct GrugMod {
-    pub about: GrugModInfo,
-}
-
 impl Server {
     pub fn handle_did_open(
         &mut self,
-        logger: &mut Logger,
         req: Notification<DidOpenNotificationParams>,
         parser: &mut Parser,
     ) {
@@ -150,9 +90,9 @@ impl Server {
         assert!(req.params.text_document.uri.starts_with("file://"));
 
         let path = &req.params.text_document.uri["file.//".len()..];
-        let path = PathBuf::from_str(path).unwrap_or_log(logger, "Unresolved file path");
+        let path = PathBuf::from_str(path).unwrap();
 
-        logger.log_str(format!("Opened the file: {:?}", path.to_str().unwrap()));
+        info!("Opened the file: {:?}", path.to_str().unwrap());
 
         let paths: Vec<&Path> = path.ancestors().collect();
         let piece_amt = paths.len();
@@ -163,10 +103,10 @@ impl Server {
 
             if is_file {
                 if self.file_system.exists(path).unwrap() {
-                    logger.log_str(format!(
+                    error!(
                         "Trying to create file that already exists: {}",
                         path
-                    ));
+                    );
                     break;
                 }
 
@@ -175,7 +115,7 @@ impl Server {
                     .unwrap();
 
                 let document = Document::new(parser, req.params.text_document.text.as_bytes().to_vec());
-                logger.log_str(format!("{:?}", document));
+                info!("New document: {:?}", document);
                 self.document_map.insert(path.to_string(), document);
                 break;
             }
@@ -188,7 +128,6 @@ impl Server {
 
     pub fn handle_did_change(
         &mut self,
-        logger: &mut Logger,
         req: Notification<DidChangeNotificationParams>,
         parser: &mut Parser,
     ) {
@@ -196,7 +135,7 @@ impl Server {
 
         let path = &req.params.text_document.uri["file.//".len()..];
 
-        logger.log_str(format!("Updated file: {:?}", path));
+        info!("Updated file: {:?}", path);
 
         let document = self.document_map.get_mut(path).unwrap();
         *document = Document::new(parser, req.params.content_changes[0].text.as_bytes().to_vec());

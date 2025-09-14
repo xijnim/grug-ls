@@ -3,7 +3,11 @@ use std::{path::PathBuf, str::FromStr};
 use serde::{Deserialize, Serialize};
 use vfs::MemoryFS;
 
-use crate::{LoggableResult, Logger, rpc::RequestMessage, server::Server};
+use crate::{rpc::RequestMessage, server::{helper::spawn_worker, mod_api::ModApi, Server}};
+
+use std::collections::HashMap;
+
+use log::error;
 
 #[derive(Serialize, Deserialize)]
 pub struct ServerInfo {
@@ -35,10 +39,13 @@ pub struct ServerCapabilities {
 
     #[serde(rename = "hoverProvider")]
     pub hover_provider: bool,
+
+    #[serde(rename = "completionProvider")]
+    pub completion_provider: HashMap<(), ()>,
 }
 
 impl Server {
-    pub fn from_request(logger: &mut Logger, json: serde_json::Value) -> Server {
+    pub fn from_request(json: serde_json::Value) -> Server {
         #[derive(Serialize, Deserialize, Debug)]
         struct WorkspaceFolder {
             uri: String,
@@ -61,8 +68,8 @@ impl Server {
 
         let request = match request {
             Err(error) => {
-                logger.log_str(format!("Failure parsing init request: {:?}", error));
-                logger.log_str(format!("Request had this json: {:?}", json));
+                error!("Failure parsing init request: {:?}", error);
+                error!("Request had this json: {:?}", json);
                 panic!()
             }
             Ok(req) => req,
@@ -79,18 +86,26 @@ impl Server {
 
         if root_path.is_none() {
             //TODO: Send the error message to the client
-            logger.log_str("Couldnt get a root path");
-            logger.log_str(format!("{:?}", json.to_string()));
+            error!("Couldn't get a root path");
+            error!("Init Request: {:?}", json);
+            panic!();
         }
         let root_path = root_path.unwrap();
         let root_path = PathBuf::from_str(&root_path)
-            .unwrap_or_log(logger, format!("root path could be parsed {}", root_path));
+            .unwrap();
+
+        let mod_api_json = std::fs::read_to_string(&root_path.join("mod_api.json")).unwrap();
+        let mod_api: ModApi = serde_json::from_str(&mod_api_json).unwrap();
+
+        let chan = spawn_worker(root_path.clone()).unwrap();
 
         Server {
             file_system: MemoryFS::new(),
             root_path,
             client_capabilities: request.params.capabilities,
             document_map: std::collections::HashMap::new(),
+            messages_chan: chan,
+            mod_api,
         }
     }
 }
