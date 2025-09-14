@@ -1,6 +1,4 @@
-use std::{borrow::Borrow, convert::identity};
-
-use tree_sitter::TreeCursor;
+use std::borrow::Borrow;
 
 #[derive(Debug)]
 #[derive(Clone, Copy)]

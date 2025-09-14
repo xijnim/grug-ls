@@ -1,7 +1,6 @@
 use std::{
     path::PathBuf,
     sync::mpsc::{Receiver, Sender, channel},
-    time::SystemTime,
 };
 
 use crate::server::{Server, mod_api::ModApi};

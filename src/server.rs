@@ -5,12 +5,12 @@ use vfs::MemoryFS;
 use crate::{
     rpc::{Notification, RequestMessage, ResponseMessage, Rpc},
     server::{
-        completion::CompletionParams, document::Document, helper::{spawn_worker, ServerUpdate}, init::{InitResponse, InitResult, ServerCapabilities, ServerInfo}, mod_api::ModApi, text_sync::{
+        completion::CompletionParams, document::Document, helper::ServerUpdate, init::{InitResult, ServerCapabilities, ServerInfo}, mod_api::ModApi, text_sync::{
             DidChangeNotificationParams, DidOpenNotificationParams, TextDocumentPositionParams,
         }
     },
 };
-use std::{collections::HashMap, default, path::PathBuf, process, sync::mpsc::Receiver};
+use std::{collections::HashMap, path::PathBuf, sync::mpsc::Receiver};
 
 mod document;
 mod helper;

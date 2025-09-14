@@ -1,4 +1,4 @@
-use crate::server::document::{Document, Type, Variable, parser_utils};
+use crate::server::document::{Document, Variable, parser_utils};
 
 #[derive(PartialEq, Eq, Debug)]
 pub struct SpotInfo {
@@ -76,6 +76,8 @@ on_spawn(str: string) {
     let document = Document::new(&mut parser, source.as_bytes().to_vec());
 
     let spot_info = get_spot_info(&document, &func_call);
+
+    use crate::server::document::Type;
     assert_eq!(
         spot_info,
         SpotInfo {

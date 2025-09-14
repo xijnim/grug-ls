@@ -4,7 +4,11 @@ use vfs::FileSystem;
 use crate::{
     rpc::{RequestMessage, ResponseMessage, Rpc},
     server::{
-        document::{parser_utils, Document, Variable}, mod_api::{GrugArgument, ModApi}, text_sync::{Position, Range, TextDocumentPositionParams}, utils::get_spot_info, Server
+        Server,
+        document::Document,
+        mod_api::{GrugArgument, ModApi},
+        text_sync::{Position, Range, TextDocumentPositionParams},
+        utils::get_spot_info,
     },
 };
 
@@ -55,23 +59,17 @@ impl Server {
                     None => break 'a,
                 };
 
-                if let Some(func) = {
-                    mod_api
-                        .game_functions
-                        .get(&name)
-                } {
+                if let Some(func) = { mod_api.game_functions.get(&name) } {
                     let mut text = format!("{}(", name);
                     for (idx, arg) in func.arguments.iter().enumerate() {
                         let name = match arg {
-                            GrugArgument::String { name } |
-                            GrugArgument::I32 { name } |
-                            GrugArgument::F32 { name } |
-                            GrugArgument::ID { name } |
-
-                            GrugArgument::Bool { name } |
-
-                            GrugArgument::Resource { name, .. } |
-                            GrugArgument::Entity { name, .. } => name,
+                            GrugArgument::String { name }
+                            | GrugArgument::I32 { name }
+                            | GrugArgument::F32 { name }
+                            | GrugArgument::ID { name }
+                            | GrugArgument::Bool { name }
+                            | GrugArgument::Resource { name, .. }
+                            | GrugArgument::Entity { name, .. } => name,
                         };
                         text.push_str(name);
                         text.push_str(": ");
@@ -84,7 +82,7 @@ impl Server {
                             GrugArgument::Resource { .. } => "resource",
                             GrugArgument::Entity { .. } => "entity",
                         });
-                        if idx < func.arguments.len()-1 {
+                        if idx < func.arguments.len() - 1 {
                             text.push_str(", ");
                         }
                     }

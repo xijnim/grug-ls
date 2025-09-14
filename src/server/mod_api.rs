@@ -70,19 +70,6 @@ pub struct ModApi {
     pub game_functions: HashMap<String, GrugGameFunction>,
 }
 
-#[derive(Debug)]
-pub struct GrugModInfo {
-    pub name: String,
-    pub version: String,
-    pub game_version: String,
-    pub author: String,
-}
-
-#[derive(Debug)]
-pub struct GrugMod {
-    pub about: GrugModInfo,
-}
-
 #[test]
 fn mod_api_test() {
     let source = r#" {

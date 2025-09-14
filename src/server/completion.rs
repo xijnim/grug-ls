@@ -1,7 +1,7 @@
 use serde::{Serialize, Deserialize};
 use serde_repr::{Serialize_repr, Deserialize_repr};
 
-use crate::{rpc::{RequestMessage, ResponseMessage, Rpc}, server::{document::Document, mod_api::ModApi, text_sync::{Position, TextDocumentIdentifier}, Server}};
+use crate::{rpc::{RequestMessage, ResponseMessage, Rpc}, server::{document::Document, text_sync::{Position, TextDocumentIdentifier}, Server}};
 
 use log::info;
 
@@ -55,8 +55,8 @@ pub struct CompletionItem {
 impl Server {
     pub fn get_completion(
         &self,
-        document: &Document,
-        node: &tree_sitter::Node<'_>,
+        _document: &Document,
+        _node: &tree_sitter::Node<'_>,
     ) -> Vec<CompletionItem> {
         let mut items: Vec<CompletionItem> = Vec::new();
 
