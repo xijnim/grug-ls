@@ -66,9 +66,6 @@ impl Server {
 
         let spot_info = get_spot_info(document, node);
 
-        info!("{:?}", node.kind());
-        info!("{:?}", spot_info);
-
         for var in spot_info.variables.iter() {
             items.push(CompletionItem {
                 label: var.name.clone(),
@@ -95,7 +92,6 @@ impl Server {
             });
         }
 
-        info!("{:?}", document.on_functions);
         if "source_file" == node.parent().map(|node| node.kind()).unwrap_or("source_file") {
             info!("on root");
             if let Some(entity) = self.mod_api.entities.get(&document.entity_type) {

@@ -34,6 +34,7 @@ fn main() {
     let mut rpc = Rpc::new(std::io::stdin(), std::io::stdout());
 
     info!("LSP START");
+    info!("Got these arguments: {:?}", args);
 
     let mut server = ServerWrapper::new();
 
