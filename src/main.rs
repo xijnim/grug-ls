@@ -1,3 +1,6 @@
+use std::path::PathBuf;
+use std::str::FromStr;
+
 use grug_ls::{rpc::Rpc, server::ServerWrapper};
 use structured_logger::{Builder, json::new_writer};
 
@@ -11,9 +14,10 @@ fn main() {
         return;
     }
 
-    let log_file_path = "/home/xijnim/Projects/grug-ls/log.txt";
+    let log_file_path = include_str!("../log_path");
+    let log_file_path: String = log_file_path.chars().filter(|c| *c != '\n').collect();
+    let log_file_path = PathBuf::from_str(&log_file_path).expect("Didn't get a valid log file path");
 
-    // TODO: Automatically find the project directory
     let file_writer = std::fs::File::options()
         .create(true)
         .append(true)

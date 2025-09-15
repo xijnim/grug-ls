@@ -1,2 +1,8 @@
 /target
-log.txt
+
+/log.json
+/log_path
+
+/test
+/tests
+
