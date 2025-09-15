@@ -5,10 +5,12 @@ on_spawn() {
     set_gun_sprite_path("rpg-7.png")
     set_gun_rounds_per_minute(120)
     set_gun_companion("vanilla:crate")
-    
+
+    set_gun_rounds_per_minute(3)
+
     shots: i32 = 0
-    thing: string = "h"
-    file: resource = "png"
+    thing: string = "hi"
+    file: resource = thing
 
     map_set_i32(counter_id, "shots", 0)
 }
@@ -18,13 +20,7 @@ on_despawn() {
 }
 
 on_fire() {
-    print_string("RPG-7")
-    spawn_bullet("pg_7vl", 0.0, 0.0, 0.0, 100.0)
 
-    if map_has_i32(counter_id, "shots") {
-        shots: i32 = map_get_i32(counter_id, "shots")
-        map_set_i32(counter_id, "shots", shots + 1)
-    }
 }
 
 helper_hi(name: string) string {

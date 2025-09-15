@@ -1,6 +1,7 @@
 use std::borrow::Borrow;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(PartialOrd, Ord)]
 pub enum Type {
     I32,
     F32,
@@ -39,7 +40,7 @@ impl Type {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Variable {
     pub name: String,
     pub r#type: Type,

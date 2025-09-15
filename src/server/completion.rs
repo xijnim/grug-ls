@@ -4,10 +4,7 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
 use crate::{
     rpc::{RequestMessage, ResponseMessage, Rpc},
     server::{
-        Server,
-        document::Document,
-        text_sync::{Position, TextDocumentIdentifier},
-        utils::get_spot_info,
+        document::Document, text_sync::{Position, TextDocumentIdentifier}, utils::{get_nearest_node, get_spot_info}, Server
     },
 };
 
@@ -69,6 +66,9 @@ impl Server {
 
         let spot_info = get_spot_info(document, node);
 
+        info!("{:?}", node.kind());
+        info!("{:?}", spot_info);
+
         for var in spot_info.variables.iter() {
             items.push(CompletionItem {
                 label: var.name.clone(),
@@ -120,15 +120,9 @@ impl Server {
         let path = &req.params.text_document.uri["file.//".len()..];
         let document = self.document_map.get(path).unwrap();
 
-        let point = tree_sitter::Point {
-            column: req.params.position.character,
-            row: req.params.position.line,
-        };
-        let node = document
-            .tree
-            .root_node()
-            .named_descendant_for_point_range(point, point)
-            .unwrap();
+        let node = get_nearest_node(document, req.params.position);
+
+        info!("{}", node.kind());
 
         let completion = self.get_completion(document, &node);
         let result: ResponseMessage<Vec<CompletionItem>> = ResponseMessage::new(req.id, completion);
