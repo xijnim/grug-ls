@@ -1,7 +1,14 @@
 [package]
 name = "grug-ls"
+description = "A Language Server for the grug language"
+authors = ["xijnim <xijnin@gmail.com>"]
+readme = "README.md"
+keywords = ["lsp", "grug"]
+license = "MIT"
 version = "0.1.0"
 edition = "2024"
+categories = ["language-server", "developer-tools", "text-editors"]
+repository = "https://github.com/xijnim/grug-ls.git"
 
 [dependencies]
 chrono = "0.4.41"
