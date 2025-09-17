@@ -22,7 +22,7 @@ fn main() {
         return;
     }
 
-    let log_file_path = include_str!("../log_path");
+    let log_file_path = std::env::temp_dir().join("grug-ls-logs.json");
     let log_file_path: String = log_file_path.chars().filter(|c| *c != '\n').collect();
     let log_file_path = PathBuf::from_str(&log_file_path).expect("Didn't get a valid log file path");
 
