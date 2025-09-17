@@ -3,11 +3,11 @@ name = "grug-ls"
 description = "A Language Server for the grug language"
 authors = ["xijnim <xijnin@gmail.com>"]
 readme = "README.md"
-keywords = ["lsp", "grug"]
+keywords = ["lsp", "language-server", "grug"]
 license = "MIT"
 version = "0.1.0"
 edition = "2024"
-categories = ["language-server", "developer-tools", "text-editors"]
+categories = ["text-editors"]
 repository = "https://github.com/xijnim/grug-ls.git"
 
 [dependencies]
