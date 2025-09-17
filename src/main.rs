@@ -1,11 +1,19 @@
 use std::path::PathBuf;
 use std::str::FromStr;
 
-use grug_ls::{rpc::Rpc, server::ServerWrapper};
-use structured_logger::{Builder, json::new_writer};
+use grug_ls::server::Server;
 
 use log::error;
 use log::info;
+use lsp_server::{Connection, ErrorCode, Response};
+use lsp_types::{CompletionOptions, InitializeResult, ServerInfo};
+use lsp_types::HoverProviderCapability;
+use lsp_types::InitializeParams;
+use lsp_types::ServerCapabilities;
+use lsp_types::TextDocumentSyncCapability;
+use lsp_types::TextDocumentSyncKind;
+use structured_logger::json::new_writer;
+use structured_logger::Builder;
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
@@ -30,28 +38,70 @@ fn main() {
         .with_target_writer("*", new_writer(file_writer))
         .init();
 
+    let (mut connection, io_threads) = Connection::stdio();
+
+    let server_capabilities = ServerCapabilities {
+        text_document_sync: Some(TextDocumentSyncCapability::Kind(TextDocumentSyncKind::FULL)),
+        hover_provider: Some(HoverProviderCapability::Simple(true)),
+        completion_provider: Some(CompletionOptions::default()),
+
+        ..Default::default()
+    };
+    
+    let (mut server, id) = match connection.initialize_start() {
+        Ok((req_id, value)) => {
+            let params: InitializeParams = serde_json::from_value(value).unwrap();
+
+            let server = Server::from_request(params);
+            match server {
+                Ok(server) => (server, req_id),
+                Err(err) => {
+                    let err = serde_json::to_string(&err).unwrap();
+                    error!("{:?}", err);
+
+                    let res = Response::new_err(req_id.clone(), ErrorCode::InvalidRequest as i32, err);
+                    let res = serde_json::to_value(res).unwrap();
+                    connection.initialize_finish(req_id, res).unwrap();
+
+                    panic!();
+                }
+            }
+        }
+        Err(err) => {
+            error!("Init Star err: {}", err);
+            panic!()
+        }
+    };
+
+    let init_data = InitializeResult {
+        capabilities: server_capabilities,
+        server_info: Some(ServerInfo {
+            name: "Grug-LS".to_string(),
+            version: Some("1.0.0".to_string()),
+        }),
+        ..Default::default()
+    };
+    let init_data = serde_json::to_value(init_data).unwrap();
+
+    connection.initialize_finish(id, init_data).unwrap();
+
     let mut parser = tree_sitter::Parser::new();
     parser
         .set_language(&tree_sitter_grug::LANGUAGE.into())
         .unwrap();
 
-    let mut rpc = Rpc::new(std::io::stdin(), std::io::stdout());
-
     info!("LSP START");
     info!("Got these arguments: {:?}", args);
 
-    let mut server = ServerWrapper::new();
-
     loop {
-        let content = rpc.recv();
-        let json = String::from_utf8(content.to_vec());
+        let message: lsp_server::Message = connection.receiver.recv().unwrap();
 
-        if let Err(ref error) = json {
-            error!("Error decoding message json: {:?}", error);
-            panic!();
+        server.handle_message(message, &mut connection, &mut parser);
+
+        if server.should_exit {
+            break;
         }
-        let json = json.unwrap();
-
-        server.handle_message(json, &mut rpc, &mut parser);
     }
+    io_threads.join().unwrap();
+
 }

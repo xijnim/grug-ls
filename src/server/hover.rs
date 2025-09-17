@@ -1,43 +1,17 @@
-use serde::{Deserialize, Serialize};
+use lsp_server::{Connection, ErrorCode, Message, RequestId, Response};
+use lsp_types::{Hover, HoverContents, HoverParams, MarkupContent, MarkupKind, Position, Range};
 use vfs::FileSystem;
 
 use crate::{
-    rpc::{RequestMessage, ResponseMessage, Rpc},
     server::{
         Server,
         document::Document,
-        mod_api::{GrugArgument, ModApi},
-        text_sync::{Position, Range, TextDocumentPositionParams},
+        mod_api::ModApi,
         utils::get_spot_info,
     },
 };
 
-#[derive(Serialize, Deserialize, Debug)]
-enum MarkupKind {
-    PlainText,
-    Markup,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct MarkupContent {
-    kind: MarkupKind,
-    value: String,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct HoverResult {
-    contents: MarkupContent,
-    range: Range,
-}
-
 impl Server {
-    fn send_null(id: serde_json::Value, rpc: &mut Rpc) {
-        let res: ResponseMessage<serde_json::Value> =
-            ResponseMessage::new(id, serde_json::Value::Null);
-        let json = serde_json::to_string_pretty(&res).unwrap();
-
-        rpc.send(json);
-    }
     fn get_hover(
         mod_api: &ModApi,
         document: &Document,
@@ -84,14 +58,16 @@ impl Server {
 
         None
     }
-    pub fn handle_hover(&self, req: RequestMessage<TextDocumentPositionParams>, rpc: &mut Rpc) {
+    pub fn handle_hover(&self, params: HoverParams, connection: &mut Connection, id: RequestId) {
+        let uri = params.text_document_position_params.text_document.uri.as_str();
+        
         // We probably wont need to use this server on TCP
-        assert!(req.params.text_document.uri.starts_with("file://"));
+        assert!(uri.starts_with("file://"));
 
-        let path = &req.params.text_document.uri["file.//".len()..];
+        let path = &uri["file.//".len()..];
 
         if !self.file_system.exists(path).unwrap_or(false) {
-            Server::send_null(req.id, rpc);
+            connection.sender.send(Message::Response(Response::new_err(id, ErrorCode::InvalidRequest as i32, format!("File doesnt exist: {}", path)))).unwrap();
             return;
         }
 
@@ -100,8 +76,8 @@ impl Server {
         let ast = &document.tree;
 
         let point = tree_sitter::Point {
-            column: req.params.position.character,
-            row: req.params.position.line,
+            column: params.text_document_position_params.position.character as usize,
+            row: params.text_document_position_params.position.line as usize,
         };
 
         let node = ast
@@ -113,7 +89,7 @@ impl Server {
 
         let content = Self::get_hover(&self.mod_api, document, &node);
         if content.is_none() {
-            Server::send_null(req.id, rpc);
+            connection.sender.send(Message::Response(Response::new_ok(id, serde_json::Value::Null))).unwrap();
             return;
         }
         let mut content = content.unwrap().as_bytes().to_vec();
@@ -128,27 +104,23 @@ impl Server {
                 .to_vec();
         }
 
-        let res: ResponseMessage<HoverResult> = ResponseMessage::new(
-            req.id,
-            HoverResult {
-                contents: MarkupContent {
-                    kind: MarkupKind::PlainText,
-                    value: String::from_utf8(content).unwrap(),
+        let res = Response::new_ok(id, Hover {
+            contents: HoverContents::Markup(MarkupContent {
+                kind: MarkupKind::PlainText,
+                value: String::from_utf8(content).unwrap(),
+            }),
+            range: Some(Range {
+                start: Position {
+                    line: range.start_point.row as u32,
+                    character: range.start_point.column as u32,
                 },
-                range: Range {
-                    start: Position {
-                        line: range.start_point.row,
-                        character: range.start_point.column,
-                    },
-                    end: Position {
-                        line: range.end_point.row,
-                        character: range.end_point.column,
-                    },
+                end: Position {
+                    line: range.end_point.row as u32,
+                    character: range.end_point.column as u32,
                 },
-            },
-        );
-        let json = serde_json::to_string_pretty(&res).unwrap();
+            }),
+        });
 
-        rpc.send(json);
+        connection.sender.send(Message::Response(res)).unwrap();
     }
 }

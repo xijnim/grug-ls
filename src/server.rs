@@ -1,21 +1,20 @@
+use lsp_server::{Connection, Message};
+use lsp_types::{ClientCapabilities, CompletionParams, DidChangeTextDocumentParams, DidOpenTextDocumentParams, HoverParams};
 use serde::{Deserialize, Serialize};
 use tree_sitter::Parser;
 use vfs::MemoryFS;
 
 use crate::{
-    rpc::{Notification, RequestMessage, ResponseMessage, Rpc},
     server::{
-        completion::CompletionParams, document::Document, helper::ServerUpdate, init::{InitResult, ServerCapabilities, ServerInfo}, mod_api::ModApi, text_sync::{
-            DidChangeNotificationParams, DidOpenNotificationParams, TextDocumentPositionParams,
-        }
-    },
+        document::Document, helper::ServerUpdate, mod_api::ModApi,
+    }
 };
 use std::{collections::HashMap, path::PathBuf, sync::mpsc::Receiver};
 
 mod document;
 mod helper;
 mod hover;
-mod init;
+pub mod init;
 mod mod_api;
 mod text_sync;
 mod utils;
@@ -40,146 +39,6 @@ impl ServerWrapper {
         ServerWrapper::Inactive
     }
 
-    pub fn handle_message(&mut self, json: String, rpc: &mut Rpc, parser: &mut Parser) {
-        let message: Result<serde_json::Value, _> = serde_json::from_str(&json);
-        if let Err(ref error) = message {
-            error!("Error parsing json:\nSRC: {}ERROR: {:?}", json, error);
-            panic!();
-        }
-
-        let message = message.unwrap();
-
-        if message.get("method").is_none() {
-            error!("Received message from the client with not method");
-            panic!();
-        }
-
-        let method = message.get("method").unwrap();
-        if !method.is_string() {
-            error!("The method property of the client message wasnt a string");
-            panic!();
-        }
-        let method = method.as_str().unwrap();
-
-        let mut server = match self {
-            ServerWrapper::Inactive | ServerWrapper::Shutdown => None,
-            ServerWrapper::Active(server) => Some(server),
-        };
-
-        if let Some(ref mut server) = server {
-            server.handle_worker_messages();
-        }
-
-        match method {
-            "initialize" => {
-                if let ServerWrapper::Active(_) = self {
-                    error!("Client tried to initialize twice");
-                    panic!();
-                };
-                info!("Connected with the client");
-
-                let id = message.get("id").unwrap().clone();
-                let server = Server::from_request(message);
-
-                info!("Started new server: {:?}", server);
-
-                *self = ServerWrapper::Active(server);
-
-                let response = ResponseMessage::new(
-                    id,
-                    InitResult {
-                        server_info: Some(ServerInfo {
-                            name: "Grug-LS".to_string(),
-                            version: Some("1.0.0".to_string()),
-                        }),
-                        capabilities: ServerCapabilities {
-                            position_encoding: "utf-8".to_string(),
-
-                            //TODO: Incremental updates
-                            text_document_sync: 1,
-
-                            hover_provider: true,
-                            completion_provider: std::collections::HashMap::new(),
-                        },
-                    },
-                );
-                let res_json = serde_json::to_string_pretty(&response);
-                if let Err(ref error) = res_json {
-                    error!("Error encoding response json: {:?}", error);
-                    panic!();
-                }
-
-                let res_json = res_json.unwrap();
-
-                rpc.send(&*res_json);
-                info!("Sent this init response: {}", res_json);
-
-                return;
-            }
-            "initialized" => {
-                info!("Client connection was established!");
-            }
-            "textDocument/didOpen" => {
-                let did_open_notification: Notification<DidOpenNotificationParams> =
-                    serde_json::from_value(message).unwrap();
-
-                server
-                    .unwrap()
-                    .handle_did_open(did_open_notification, parser);
-            }
-            "textDocument/didChange" => {
-                let did_change_notification: Notification<DidChangeNotificationParams> =
-                    serde_json::from_value(message).unwrap();
-
-                server
-                    .unwrap()
-                    .handle_did_change(did_change_notification, parser);
-            }
-            "textDocument/didSave" => {
-                info!("Saved file");
-            }
-            "shutdown" => {
-                *self = ServerWrapper::Shutdown;
-
-                let res: ResponseMessage<serde_json::Value> =
-                    ResponseMessage::new(serde_json::Value::Null, serde_json::Value::Null);
-
-                rpc.send(serde_json::to_string_pretty(&res).unwrap());
-
-                info!("Shutting down");
-                std::process::exit(0);
-            }
-            "textDocument/hover" => {
-                let req: RequestMessage<TextDocumentPositionParams> =
-                    serde_json::from_value(message).unwrap();
-
-                server.unwrap().handle_hover(req, rpc);
-            }
-            "textDocument/completion" => {
-                let req: RequestMessage<CompletionParams> =
-                    serde_json::from_value(message).unwrap();
-
-                server.unwrap().handle_completion(req, rpc);
-            }
-            "exit" => {
-                if let ServerWrapper::Shutdown = self {
-                    info!("Exiting with 0");
-                    std::process::exit(0);
-                } else {
-                    error!("Exiting with 0");
-                    std::process::exit(1);
-                }
-            }
-            _ => error!("Unknown message method: {}", method),
-        }
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-struct ClientCapabilities {
-    #[serde(rename = "textDocument")]
-    #[serde(default)]
-    text_document: TextDocumentClientCapabilities,
 }
 
 #[derive(Serialize, Deserialize, Debug, Default)]
@@ -197,10 +56,67 @@ struct TextDocumentSyncClientCapabilities {
 
 #[derive(Debug)]
 pub struct Server {
+    pub should_exit: bool,
     root_path: PathBuf,
     client_capabilities: ClientCapabilities,
     mod_api: ModApi,
     file_system: MemoryFS,
     document_map: HashMap<String, Document>,
     messages_chan: Receiver<ServerUpdate>,
+}
+
+impl Server {
+    pub fn handle_message(&mut self, message: Message, connection: &mut Connection, parser: &mut Parser) {
+        self.handle_worker_messages();
+
+        let (id, method, params) = match message {
+            Message::Request(req) => {
+                (Some(req.id), req.method, req.params)
+            }
+            Message::Notification(notif) => {
+                (None, notif.method, notif.params)
+            }
+            _ => {
+                return;
+            }
+        };
+
+        match method.as_str() {
+            "textDocument/didOpen" => {
+                let did_open_notification: DidOpenTextDocumentParams =
+                    serde_json::from_value(params).unwrap();
+
+                self.handle_did_open(did_open_notification, parser);
+            }
+            "textDocument/didChange" => {
+                let did_change_notification: DidChangeTextDocumentParams =
+                    serde_json::from_value(params).unwrap();
+
+                self.handle_did_change(did_change_notification, parser);
+            }
+            "textDocument/didSave" => {
+                info!("Saved file");
+            }
+            "shutdown" => {
+                info!("Shutting down");
+                self.should_exit = true;
+            }
+            "textDocument/hover" => {
+                let req: HoverParams =
+                    serde_json::from_value(params).unwrap();
+
+                self.handle_hover(req, connection, id.unwrap());
+            }
+            "textDocument/completion" => {
+                let req: CompletionParams =
+                    serde_json::from_value(params).unwrap();
+
+                self.handle_completion(req, connection, id.unwrap());
+            }
+            "exit" => {
+                self.should_exit = true;
+            }
+            _ => error!("Unknown message method: {}", method),
+        }
+    }
 }

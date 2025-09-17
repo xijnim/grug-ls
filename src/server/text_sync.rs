@@ -3,90 +3,26 @@ use std::{
     str::FromStr,
 };
 
-use serde::{Deserialize, Serialize};
+use lsp_types::{DidChangeTextDocumentParams, DidOpenTextDocumentParams};
 use tree_sitter::Parser;
 use vfs::FileSystem;
-
-use crate::rpc::Notification;
 
 use crate::server::{Server, document::Document};
 
 use log::error;
 use log::info;
 
-type DocumentURI = String;
-
-#[derive(Serialize, Deserialize, Debug)]
-struct TextDocumentItem {
-    uri: DocumentURI,
-
-    #[serde(rename = "languageId")]
-    language: String,
-    version: isize,
-    text: String,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct TextDocumentIdentifier {
-    pub uri: DocumentURI,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-struct VersionedTextDocumentIdentifier {
-    uri: DocumentURI,
-    version: isize,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct DidOpenNotificationParams {
-    #[serde(rename = "textDocument")]
-    text_document: TextDocumentItem,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct DidChangeNotificationParams {
-    #[serde(rename = "textDocument")]
-    text_document: VersionedTextDocumentIdentifier,
-
-    #[serde(rename = "contentChanges")]
-    content_changes: Vec<TextDocumentContentChangeEvent>,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct Position {
-    pub line: usize,
-    pub character: usize,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct Range {
-    pub start: Position,
-    pub end: Position,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct TextDocumentPositionParams {
-    #[serde(rename = "textDocument")]
-    pub text_document: TextDocumentIdentifier,
-
-    pub position: Position,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct TextDocumentContentChangeEvent {
-    text: String,
-}
-
 impl Server {
     pub fn handle_did_open(
         &mut self,
-        req: Notification<DidOpenNotificationParams>,
+        params: DidOpenTextDocumentParams,
         parser: &mut Parser,
     ) {
+        let uri = params.text_document.uri.as_str();
         // We probably wont need to use this server on TCP
-        assert!(req.params.text_document.uri.starts_with("file://"));
+        assert!(uri.starts_with("file://"));
 
-        let path = &req.params.text_document.uri["file.//".len()..];
+        let path = &uri["file.//".len()..];
         let path = PathBuf::from_str(path).unwrap();
         let file_name = path.file_name().unwrap().to_str().unwrap().to_string();
 
@@ -110,7 +46,7 @@ impl Server {
 
                 let document = Document::new(
                     parser,
-                    req.params.text_document.text.as_bytes().to_vec(),
+                    params.text_document.text.as_bytes().to_vec(),
                     file_name,
                 );
                 info!("New document: {:?}", document);
@@ -126,12 +62,13 @@ impl Server {
 
     pub fn handle_did_change(
         &mut self,
-        req: Notification<DidChangeNotificationParams>,
+        params: DidChangeTextDocumentParams,
         parser: &mut Parser,
     ) {
-        assert!(req.params.text_document.uri.starts_with("file://"));
+        let uri = params.text_document.uri.as_str();
+        assert!(uri.starts_with("file://"));
 
-        let path = &req.params.text_document.uri["file.//".len()..];
+        let path = &uri["file.//".len()..];
         let file_name = path.split("/").last().unwrap().to_string();
 
         info!("Updated file: {:?}", path);
@@ -139,7 +76,7 @@ impl Server {
         let document = self.document_map.get_mut(path).unwrap();
         *document = Document::new(
             parser,
-            req.params.content_changes[0].text.as_bytes().to_vec(),
+            params.content_changes[0].text.as_bytes().to_vec(),
             file_name
         );
     }

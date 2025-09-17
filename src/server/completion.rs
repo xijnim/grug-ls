@@ -1,60 +1,13 @@
-use serde::{Deserialize, Serialize};
-use serde_repr::{Deserialize_repr, Serialize_repr};
+use lsp_server::{Connection, Message, RequestId, Response};
+use lsp_types::{CompletionItem, CompletionItemKind, CompletionParams, Documentation};
 
-use crate::{
-    rpc::{RequestMessage, ResponseMessage, Rpc},
-    server::{
-        document::Document, text_sync::{Position, TextDocumentIdentifier}, utils::{get_nearest_node, get_spot_info}, Server
-    },
+use crate::server::{
+    Server,
+    document::Document,
+    utils::{get_nearest_node, get_spot_info},
 };
 
 use log::info;
-
-#[derive(Serialize, Deserialize)]
-pub struct CompletionParams {
-    #[serde(rename = "textDocument")]
-    text_document: TextDocumentIdentifier,
-
-    position: Position,
-}
-
-#[derive(Serialize_repr, Deserialize_repr)]
-#[repr(u8)]
-pub enum CompletionItemKind {
-    Text = 1,
-    Method = 2,
-    Function = 3,
-    Constructor = 4,
-    Field = 5,
-    Variable = 6,
-    Class = 7,
-    Interface = 8,
-    Module = 9,
-    Property = 10,
-    Unit = 11,
-    Value = 12,
-    Enum = 13,
-    Keyword = 14,
-    Snippet = 15,
-    Color = 16,
-    File = 17,
-    Reference = 18,
-    Folder = 19,
-    EnumMember = 20,
-    Constant = 21,
-    Struct = 22,
-    Event = 23,
-    Operator = 24,
-    TypeParameter = 25,
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct CompletionItem {
-    label: String,
-    detail: String,
-    documentation: Option<String>,
-    kind: CompletionItemKind,
-}
 
 impl Server {
     pub fn get_completion(
@@ -69,40 +22,57 @@ impl Server {
         for var in spot_info.variables.iter() {
             items.push(CompletionItem {
                 label: var.name.clone(),
-                detail: var.format(),
+                detail: Some(var.format()),
                 documentation: None,
-                kind: CompletionItemKind::Variable,
+                kind: Some(CompletionItemKind::VARIABLE),
+
+                ..Default::default()
             });
         }
         for helper in document.helpers.iter() {
             items.push(CompletionItem {
                 label: helper.name.clone(),
-                detail: helper.format().clone(),
+                detail: Some(helper.format().clone()),
                 documentation: None,
-                kind: CompletionItemKind::Variable,
+                kind: Some(CompletionItemKind::VARIABLE),
+
+                ..Default::default()
             });
         }
 
         for (name, game_func) in self.mod_api.game_functions.iter() {
             items.push(CompletionItem {
                 label: name.clone(),
-                detail: format!("{}\n", game_func.format(name)),
-                documentation: Some(game_func.description.clone()),
-                kind: CompletionItemKind::Function,
+                detail: Some(format!("{}\n", game_func.format(name))),
+                documentation: Some(Documentation::String(game_func.description.clone())),
+                kind: Some(CompletionItemKind::FUNCTION),
+
+                ..Default::default()
             });
         }
 
-        if "source_file" == node.parent().map(|node| node.kind()).unwrap_or("source_file") {
+        if "source_file"
+            == node
+                .parent()
+                .map(|node| node.kind())
+                .unwrap_or("source_file")
+        {
             info!("on root");
             if let Some(entity) = self.mod_api.entities.get(&document.entity_type) {
                 info!("on entity");
                 for (func_name, func) in entity.on_functions.iter() {
-                    if !document.on_functions.iter().any(|func| func.name == *func_name) {
+                    if !document
+                        .on_functions
+                        .iter()
+                        .any(|func| func.name == *func_name)
+                    {
                         items.push(CompletionItem {
                             label: func_name.clone(),
-                            detail: func_name.clone(),
-                            documentation: Some(func.description.clone()),
-                            kind: CompletionItemKind::Function,
+                            detail: Some(func_name.clone()),
+                            documentation: Some(Documentation::String(func.description.clone())),
+                            kind: Some(CompletionItemKind::FUNCTION),
+
+                            ..Default::default()
                         })
                     }
                 }
@@ -112,19 +82,25 @@ impl Server {
         items
     }
 
-    pub fn handle_completion(&self, req: RequestMessage<CompletionParams>, rpc: &mut Rpc) {
-        let path = &req.params.text_document.uri["file.//".len()..];
+    pub fn handle_completion(
+        &self,
+        params: CompletionParams,
+        connection: &mut Connection,
+        id: RequestId,
+    ) {
+        let uri = params.text_document_position.text_document.uri.as_str();
+        let path = &uri["file.//".len()..];
         let document = self.document_map.get(path).unwrap();
 
-        let node = get_nearest_node(document, req.params.position);
+        let node = get_nearest_node(document, params.text_document_position.position);
 
         info!("{}", node.kind());
 
         let completion = self.get_completion(document, &node);
-        let result: ResponseMessage<Vec<CompletionItem>> = ResponseMessage::new(req.id, completion);
-        let json = serde_json::to_string_pretty(&result).unwrap();
 
-        info!("Sending this completion: {}", json);
-        rpc.send(json.as_str());
+        info!("Sending this completion: {:?}", completion);
+        let response = Response::new_ok(id, completion);
+
+        connection.sender.send(Message::Response(response)).unwrap();
     }
 }

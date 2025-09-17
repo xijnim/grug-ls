@@ -1,6 +1,7 @@
+use lsp_types::Position;
 use tree_sitter::Node;
 
-use crate::server::{document::{parser_utils, Document, Variable}, text_sync::Position};
+use crate::server::document::{parser_utils, Document, Variable};
 
 #[derive(PartialEq, Eq, Debug)]
 pub struct SpotInfo {
@@ -9,8 +10,8 @@ pub struct SpotInfo {
 
 pub fn get_nearest_node<'a>(document: &'a Document, position: Position) -> Node<'a> {
     let point = tree_sitter::Point {
-        column: position.character,
-        row: position.line,
+        column: position.character as usize,
+        row: position.line as usize,
     };
     let maybe_nearest = document.tree.root_node().descendant_for_point_range(point, point).unwrap();
 
