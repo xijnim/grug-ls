@@ -1,6 +1,3 @@
-use std::path::PathBuf;
-use std::str::FromStr;
-
 use grug_ls::server::Server;
 
 use log::error;
@@ -23,8 +20,6 @@ fn main() {
     }
 
     let log_file_path = std::env::temp_dir().join("grug-ls-logs.json");
-    let log_file_path: String = log_file_path.chars().filter(|c| *c != '\n').collect();
-    let log_file_path = PathBuf::from_str(&log_file_path).expect("Didn't get a valid log file path");
 
     let file_writer = std::fs::File::options()
         .create(true)
