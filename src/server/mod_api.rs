@@ -6,13 +6,21 @@ use crate::server::document::Type;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub struct GrugOnFunction {
+    #[serde(default = "default_description")]
     pub description: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub struct GrugEntity {
+    #[serde(default = "default_description")]
     pub description: String,
+
+    #[serde(default)]
     pub on_functions: HashMap<String, GrugOnFunction>,
+}
+
+fn default_description() -> String {
+    "<NO DESCRIPTION>".to_string()
 }
 
 #[derive(Serialize, Deserialize)]
@@ -30,8 +38,9 @@ pub enum GrugDetailedType {
     Bool,
     #[serde(rename = "resource")]
     Resource { resource_extension: String },
-    #[serde(rename = "entity")]
-    Entity { entity_type: String },
+
+    #[serde(untagged)]
+    Entity(String),
 }
 
 impl GrugDetailedType {
@@ -40,7 +49,7 @@ impl GrugDetailedType {
             GrugDetailedType::ID => Type::ID,
             GrugDetailedType::F32 => Type::F32,
             GrugDetailedType::Bool => Type::Bool,
-            GrugDetailedType::Entity { entity_type } => Type::Entity(entity_type.to_string()),
+            GrugDetailedType::Entity(entity_type) => Type::Entity(entity_type.to_string()),
             GrugDetailedType::I32 => Type::I32,
             GrugDetailedType::String => Type::String,
             GrugDetailedType::Resource { .. } => Type::Resource,
@@ -71,6 +80,9 @@ pub enum GrugArgument {
     },
     #[serde(rename = "entity")]
     Entity { name: String, entity_type: String },
+
+    #[serde(untagged)]
+    Unknown{name: String, r#type: String},
 }
 
 impl GrugArgument {
@@ -82,7 +94,8 @@ impl GrugArgument {
             | GrugArgument::ID { name }
             | GrugArgument::Bool { name }
             | GrugArgument::Resource { name, .. }
-            | GrugArgument::Entity { name, .. } => name,
+            | GrugArgument::Entity { name, .. }
+            | GrugArgument::Unknown { name, ..}=> name,
         }
     }
 
@@ -95,14 +108,19 @@ impl GrugArgument {
             GrugArgument::Bool { .. } => Type::Bool,
             GrugArgument::Resource { .. } => Type::String,
             GrugArgument::Entity { .. } => Type::String,
+            GrugArgument::Unknown{r#type, ..} => Type::Entity(r#type.to_string()),
         }
     }
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub struct GrugGameFunction {
+    #[serde(default = "default_description")]
     pub description: String,
+
+    #[serde(default)]
     pub arguments: Vec<GrugArgument>,
+
     pub return_type: Option<GrugDetailedType>,
 }
 
@@ -133,8 +151,12 @@ impl GrugGameFunction {
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[derive(Default)]
 pub struct ModApi {
+    #[serde(default)]
     pub entities: HashMap<String, GrugEntity>,
+
+    #[serde(default)]
     pub game_functions: HashMap<String, GrugGameFunction>,
 }
 

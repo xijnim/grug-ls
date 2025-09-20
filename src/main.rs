@@ -63,7 +63,7 @@ fn main() {
             }
         }
         Err(err) => {
-            error!("Init Star err: {}", err);
+            error!("Init Start err: {}", err);
             panic!()
         }
     };
