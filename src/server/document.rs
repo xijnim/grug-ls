@@ -1,4 +1,17 @@
-use std::borrow::Borrow;
+use std::{borrow::Borrow, collections::HashMap};
+
+use lazy_static::lazy_static;
+
+lazy_static! (
+    pub static ref PRIMITIVE_TYPES: HashMap<&'static str, &'static str> = HashMap::from([
+        ("resource", "A resource, such as an image or audio file"),
+        ("f32", "A 32 bit floating point number"),
+        ("i32", "A 32 bit integer"),
+        ("id", "An opaque type. It can represent anything external to the language."),
+        ("entity", "Holds names of types of entities (e.g. modname:entityname)"),
+        ("string", "Represents text"),
+    ]);
+);
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[derive(PartialOrd, Ord)]

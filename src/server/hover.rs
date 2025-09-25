@@ -2,14 +2,9 @@ use lsp_server::{Connection, ErrorCode, Message, RequestId, Response};
 use lsp_types::{Hover, HoverContents, HoverParams, MarkupContent, MarkupKind, Position, Range};
 use vfs::FileSystem;
 
-use crate::{
-    server::{
-        Server,
-        document::Document,
-        mod_api::ModApi,
-        utils::get_spot_info,
-    },
-};
+use crate::server::{
+        document::{Document, PRIMITIVE_TYPES}, mod_api::ModApi, utils::get_spot_info, Server
+    };
 
 impl Server {
     fn get_hover(
@@ -37,6 +32,7 @@ impl Server {
 
                 return Some(text);
             }
+
         } else if node.kind() == "helper_identifier" {
             let name = &document.content[range];
             
@@ -53,6 +49,11 @@ impl Server {
                     text.push_str(&on_func.description);
                     return Some(text);
                 }
+            }
+        } else if node.kind() == "type" {
+            let name = String::from_utf8(document.content[range].to_vec()).ok()?;
+            if let Some(desc) = PRIMITIVE_TYPES.get(name.as_str()) {
+                return Some(format!("{}\n\n{}", name, desc));
             }
         }
 
