@@ -61,7 +61,9 @@ impl Server {
                 return Err(ServerInitError::ModApiIOError(format!("At {}: {}", root_path.to_string_lossy().into_owned(), err.to_string())));
             }
         };
-        let mod_api: ModApi = serde_json::from_str(&mod_api_json).unwrap_or(ModApi::default());
+        let mod_api: ModApi = ModApi::from_json(&mod_api_json).unwrap_or(ModApi::default());
+
+        log::info!("{:?}", mod_api);
 
         let chan = spawn_worker(root_path.clone()).unwrap();
 

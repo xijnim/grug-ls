@@ -1,8 +1,12 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Mutex};
 
+use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
+use tree_sitter::{Parser, Tree};
 
 use crate::server::document::Type;
+
+pub mod parse;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub struct GrugOnFunction {
@@ -10,21 +14,38 @@ pub struct GrugOnFunction {
     pub description: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Eq, Debug)]
 pub struct GrugEntity {
     #[serde(default = "default_description")]
     pub description: String,
 
     #[serde(default)]
     pub on_functions: HashMap<String, GrugOnFunction>,
+
+    #[serde(default = "default_range")]
+    #[serde(skip)]
+    pub range: tree_sitter::Range,
 }
 
+impl PartialEq for GrugEntity {
+    fn eq(&self, other: &Self) -> bool {
+        self.on_functions == other.on_functions && self.description == other.description
+    }
+}
+
+fn default_range() -> tree_sitter::Range {
+    tree_sitter::Range {
+        start_byte: 0,
+        end_byte: 0,
+        start_point: tree_sitter::Point { row: 0, column: 0 },
+        end_point: tree_sitter::Point { row: 0, column: 0 },
+    }
+}
 fn default_description() -> String {
     "<NO DESCRIPTION>".to_string()
 }
 
-#[derive(Serialize, Deserialize)]
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub enum GrugDetailedType {
     #[serde(rename = "string")]
     String,
@@ -82,7 +103,7 @@ pub enum GrugArgument {
     Entity { name: String, entity_type: String },
 
     #[serde(untagged)]
-    Unknown{name: String, r#type: String},
+    Unknown { name: String, r#type: String },
 }
 
 impl GrugArgument {
@@ -95,7 +116,7 @@ impl GrugArgument {
             | GrugArgument::Bool { name }
             | GrugArgument::Resource { name, .. }
             | GrugArgument::Entity { name, .. }
-            | GrugArgument::Unknown { name, ..}=> name,
+            | GrugArgument::Unknown { name, .. } => name,
         }
     }
 
@@ -108,12 +129,12 @@ impl GrugArgument {
             GrugArgument::Bool { .. } => Type::Bool,
             GrugArgument::Resource { .. } => Type::String,
             GrugArgument::Entity { .. } => Type::String,
-            GrugArgument::Unknown{r#type, ..} => Type::Entity(r#type.to_string()),
+            GrugArgument::Unknown { r#type, .. } => Type::Entity(r#type.to_string()),
         }
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, Eq)]
 pub struct GrugGameFunction {
     #[serde(default = "default_description")]
     pub description: String,
@@ -122,6 +143,18 @@ pub struct GrugGameFunction {
     pub arguments: Vec<GrugArgument>,
 
     pub return_type: Option<GrugDetailedType>,
+
+    #[serde(skip)]
+    #[serde(default = "default_range")]
+    pub range: tree_sitter::Range,
+}
+
+impl PartialEq for GrugGameFunction {
+    fn eq(&self, other: &Self) -> bool {
+        self.description == other.description
+            && self.arguments == other.arguments
+            && self.return_type == other.return_type
+    }
 }
 
 impl GrugGameFunction {
@@ -134,7 +167,7 @@ impl GrugGameFunction {
 
             text.push_str(arg.get_type().as_str());
 
-            if idx < self.arguments.len()-1 {
+            if idx < self.arguments.len() - 1 {
                 text.push_str(", ");
             }
         }
@@ -150,14 +183,22 @@ impl GrugGameFunction {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
-#[derive(Default)]
+#[derive(Debug, PartialEq, Eq, Default)]
 pub struct ModApi {
-    #[serde(default)]
     pub entities: HashMap<String, GrugEntity>,
 
-    #[serde(default)]
     pub game_functions: HashMap<String, GrugGameFunction>,
+}
+
+lazy_static! {
+    pub static ref JSON_PARSER: Mutex<Parser> = Mutex::new({
+        let mut parser = Parser::new();
+        parser
+            .set_language(&tree_sitter_json::LANGUAGE.into())
+            .unwrap();
+
+        parser
+    });
 }
 
 #[test]
@@ -481,7 +522,8 @@ fn mod_api_test() {
                     ("on_fire".to_string(), GrugOnFunction {
                         description: "Called when the player's gun fires, which happens when the left mouse button is pressed or held.".to_string()
                     })
-                ])
+                ]),
+                range: default_range(),
             }),
             ("bullet".to_string(), GrugEntity {
                 description: "The bullet fired by the player's gun.".to_string(),
@@ -496,6 +538,7 @@ fn mod_api_test() {
                         description: "Called every tick.".to_string()
                     })
                 ]),
+                range: default_range(),
             }),
             ("box".to_string(), GrugEntity {
                 description: "A static or dynamic box.".to_string(),
@@ -507,6 +550,7 @@ fn mod_api_test() {
                         description: "Called when the entity is despawned.".to_string()
                     })
                 ]),
+                range: default_range(),
             }),
             ("counter".to_string(), GrugEntity {
                 description: "A counter that prints information to the console every tick.".to_string(),
@@ -521,6 +565,7 @@ fn mod_api_test() {
                         description: "Called every tick.".to_string()
                     })
                 ]),
+                range: default_range(),
             })
         ]),
         game_functions: HashMap::from([
@@ -529,70 +574,80 @@ fn mod_api_test() {
                 return_type: None,
                 arguments: vec![
                     GrugArgument::String { name: "name".to_string() }
-                ]
+                ],
+                range: default_range(),
             }),
             ("set_gun_sprite_path".to_string(), GrugGameFunction {
                 description: "Sets the sprite path of the spawned gun.".to_string(),
                 return_type: None,
                 arguments: vec![
                     GrugArgument::Resource { name: "sprite_path".to_string(), resource_extension: ".png".to_string() }
-                ]
+                ],
+                range: default_range(),
             }),
             ("set_gun_rounds_per_minute".to_string(), GrugGameFunction {
                 description: "Sets the rounds per minute of the spawned gun.".to_string(),
                 return_type: None,
                 arguments: vec![
                     GrugArgument::I32 {name: "rounds_per_minute".to_string()},
-                ]
+                ],
+                range: default_range(),
             }),
             ("set_gun_companion".to_string(), GrugGameFunction {
                 description: "Sets the companion of the spawned gun. This is a box that gets spawned alongside the gun, to show off being able to spawn other entitities during on_spawn().".to_string(),
                 return_type: None,
                 arguments: vec![
                     GrugArgument::Entity { name: "companion".to_string(), entity_type: "box".to_string() },
-                ]
+                ],
+                range: default_range(),
             }),
             ("set_bullet_name".to_string(), GrugGameFunction {
                 description: "Sets the name of the spawned bullet.".to_string(),
                 return_type: None,
                 arguments: vec![
                     GrugArgument::String { name: "name".to_string() },
-                ]
+                ],
+                range: default_range(),
             }),
             ("set_bullet_sprite_path".to_string(), GrugGameFunction {
                 description: "Sets the sprite path of the spawned bullet.".to_string(),
                 return_type: None,
                 arguments: vec![
                     GrugArgument::Resource { name: "sprite_path".to_string(), resource_extension: ".png".to_string() }
-                ]
+                ],
+                range: default_range(),
             }),
             ("set_bullet_density".to_string(), GrugGameFunction {
                 description: "Sets the density of the spawned bullet.".to_string(),
                 return_type: None,
                 arguments: vec![
                     GrugArgument::F32 {name: "density".to_string()}
-                ]
+                ],
+                range: default_range(),
             }),
             ("set_box_name".to_string(), GrugGameFunction {
                 description: "Sets the name of the spawned box.".to_string(),
                 return_type: None,
                 arguments: vec![
                     GrugArgument::String{name: "name".to_string()}
-                ]
+                ],
+                range: default_range(),
             }),
             ("set_box_sprite_path".to_string(), GrugGameFunction {
                 description: "Sets the sprite path of the spawned box.".to_string(),
                 return_type: None,
                 arguments: vec![
                     GrugArgument::Resource { name: "sprite_path".to_string(), resource_extension: ".png".to_string() }
-                ]
+                ],
+                range: default_range(),
             }),
             ("set_counter_name".to_string(), GrugGameFunction {
                 description: "Sets the name of the spawned counter.".to_string(),
                 return_type: None,
                 arguments: vec![
                     GrugArgument::String { name: "name".to_string() }
-                ]
+                ],
+                range: default_range(),
             }),
             ("spawn_bullet".to_string(), GrugGameFunction {
                 description: "Spawns a bullet.".to_string(),
@@ -603,21 +658,24 @@ fn mod_api_test() {
                     GrugArgument::F32 {name: "y".to_string()},
                     GrugArgument::F32 {name: "angle_in_degrees".to_string()},
                     GrugArgument::F32 {name: "velocity_in_meters_per_second".to_string()},
-                ]
+                ],
+                range: default_range(),
             }),
             ("spawn_counter".to_string(), GrugGameFunction {
                 description: "Spawns a counter, and returns its ID.".to_string(),
                 return_type: Some(GrugDetailedType::ID),
                 arguments: vec![
                     GrugArgument::Entity { name: "path".to_string(), entity_type: "counter".to_string() }
-                ]
+                ],
+                range: default_range(),
             }),
             ("despawn_entity".to_string(), GrugGameFunction {
                 description: "Despawns an entity, given its ID.".to_string(),
                 return_type: None,
                 arguments: vec![
                     GrugArgument::ID {name: "entity_id".to_string()}
-                ]
+                ],
+                range: default_range(),
             }),
             ("rand".to_string(), GrugGameFunction {
                 description: "Gets a random f32 between min and max.".to_string(),
@@ -625,42 +683,48 @@ fn mod_api_test() {
                 arguments: vec![
                     GrugArgument::F32{name: "min".to_string()},
                     GrugArgument::F32{name: "max".to_string()},
-                ]
+                ],
+                range: default_range(),
             }),
             ("print_i32".to_string(), GrugGameFunction {
                 description: "Prints an i32.".to_string(),
                 return_type: None,
                 arguments: vec![
                     GrugArgument::I32{name: "i".to_string()}
-                ]
+                ],
+                range: default_range(),
             }),
             ("print_f32".to_string(), GrugGameFunction {
                 description: "Prints an f32.".to_string(),
                 return_type: None,
                 arguments: vec![
                     GrugArgument::F32 {name: "f".to_string()}
-                ]
+                ],
+                range: default_range(),
             }),
             ("print_string".to_string(), GrugGameFunction {
                 description: "Prints a string.".to_string(),
                 return_type: None,
                 arguments: vec![
                     GrugArgument::String { name: "s".to_string() }
-                ]
+                ],
+                range: default_range(),
             }),
             ("print_bool".to_string(), GrugGameFunction {
                 description: "Prints a bool.".to_string(),
                 return_type: None,
                 arguments: vec![
                     GrugArgument::Bool {name: "b".to_string()}
-                ]
+                ],
+                range: default_range(),
             }),
             ("play_sound".to_string(), GrugGameFunction {
                 description: "Plays a sound.".to_string(),
                 return_type: None,
                 arguments: vec![
                     GrugArgument::Resource { name: "path".to_string(), resource_extension: ".wav".to_string() }
-                ]
+                ],
+                range: default_range(),
             }),
             ("map_has_i32".to_string(), GrugGameFunction {
                 description: "Returns whether an entity's i32 map contains a key.".to_string(),
@@ -668,7 +732,8 @@ fn mod_api_test() {
                 arguments: vec![
                     GrugArgument::ID {name: "entity_id".to_string()},
                     GrugArgument::String {name: "key".to_string()}
-                ]
+                ],
+                range: default_range(),
             }),
             ("map_get_i32".to_string(), GrugGameFunction {
                 description: "Returns the value of a key in an entity's i32 map. Note that if the map doesn't contain the key, the game will throw an error, so make sure to call map_has_i32() first!".to_string(),
@@ -676,7 +741,8 @@ fn mod_api_test() {
                 arguments: vec![
                     GrugArgument::ID {name: "entity_id".to_string()},
                     GrugArgument::String {name: "key".to_string()},
-                ]
+                ],
+                range: default_range(),
             }),
             ("map_set_i32".to_string(), GrugGameFunction {
                 description: "Sets the value of a key in an entity's i32 map. Note that if the map doesn't contain the key, the game will throw an error, so make sure to call map_has_i32() first!".to_string(),
@@ -685,11 +751,15 @@ fn mod_api_test() {
                     GrugArgument::ID {name: "entity_id".to_string()},
                     GrugArgument::String{name: "key".to_string()},
                     GrugArgument::I32{name: "value".to_string()},
-                ]
+                ],
+                range: default_range(),
             })
         ]),
+
+        ..Default::default()
     };
 
-    let result: ModApi = serde_json::from_str(source).unwrap();
-    assert_eq!(expected, result);
+    let result: ModApi = ModApi::from_json(source).unwrap();
+
+    assert_eq!(result, expected);
 }

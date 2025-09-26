@@ -43,17 +43,17 @@ impl ServerWorker {
             if let notify::EventKind::Access(_) = event.kind {
             } else {
                 if let Ok(json) = std::fs::read_to_string(&self.mod_api_path) {
-                    let mod_api: Result<ModApi, serde_json::Error> = serde_json::from_str(&json);
+                    let mod_api: Option<ModApi> = ModApi::from_json(&json);
 
                     match mod_api {
-                        Ok(mod_api) => {
+                        Some(mod_api) => {
                             info!("Sending new mod_api: {:?}", mod_api);
                             self.sender
                                 .send(ServerUpdate::ModApiChange(mod_api))
                                 .unwrap();
                         }
-                        Err(err) => {
-                            error!("Error deserializing mod_api: {:?}", err);
+                        None => {
+                            error!("Error deserializing mod_api");
                         }
                     }
                 }

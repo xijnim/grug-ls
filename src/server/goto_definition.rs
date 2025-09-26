@@ -5,8 +5,12 @@ use lsp_types::{GotoDefinitionParams, GotoDefinitionResponse, LocationLink, Uri}
 use vfs::FileSystem;
 
 use crate::server::{
-    document::Document, utils::{get_spot_info, treesitter_range_to_lsp}, Server
+    Server,
+    document::Document,
+    utils::{get_spot_info, treesitter_range_to_lsp},
 };
+
+use log::info;
 
 impl Server {
     fn get_definition(
@@ -18,6 +22,7 @@ impl Server {
         let uri = Uri::from_str(&uri).ok()?;
         let spot_info = get_spot_info(document, node);
         let text = String::from_utf8(document.content[node.byte_range()].to_vec()).ok()?;
+        info!("Trying to get definition for: {}", node.kind());
         if node.kind() == "identifier" {
             if let Some(var) = spot_info.variables.iter().find(|var| var.name == text) {
                 let node = document
@@ -35,7 +40,31 @@ impl Server {
                 };
                 return Some(GotoDefinitionResponse::Link(vec![link]));
             }
+
+            if document.entity_type == text {
+                if let Some(entity) = self.mod_api.entities.get(&document.entity_type) {
+                    let link = LocationLink {
+                        target_uri: Uri::from_str(&format!("file://{}", self.root_path.join("mod_api.json").to_str().unwrap())).unwrap(),
+                        target_range: treesitter_range_to_lsp(&entity.range),
+                        // Store the name key for the entity
+                        target_selection_range: treesitter_range_to_lsp(&entity.range),
+                        origin_selection_range: None,
+                    };
+                    return Some(GotoDefinitionResponse::Link(vec![link]));
+                }
+            }
+
+            if let Some(func) = self.mod_api.game_functions.get(&text) {
+                let link = LocationLink {
+                    target_uri: Uri::from_str(&format!("file://{}", self.root_path.join("mod_api.json").to_str().unwrap())).unwrap(),
+                    target_range: treesitter_range_to_lsp(&func.range),
+                    target_selection_range: treesitter_range_to_lsp(&func.range),
+                    origin_selection_range: None,
+                };
+                return Some(GotoDefinitionResponse::Link(vec![link]));
+            }
         }
+
         if node.kind() == "helper_identifier" {
             if let Some(helper) = document.helpers.iter().find(|func| func.name == text) {
                 let node = document
@@ -56,7 +85,6 @@ impl Server {
         }
         if node.kind() == "on_identifier" {
         }
-
         None
     }
     pub fn handle_goto_definition(
