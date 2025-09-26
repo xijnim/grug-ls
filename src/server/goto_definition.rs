@@ -41,21 +41,19 @@ impl Server {
                 return Some(GotoDefinitionResponse::Link(vec![link]));
             }
 
-            if document.entity_type == text {
-                if let Some(entity) = self.mod_api.entities.get(&document.entity_type) {
-                    let link = LocationLink {
-                        target_uri: Uri::from_str(&format!(
-                            "file://{}",
-                            self.root_path.join("mod_api.json").to_str().unwrap()
-                        ))
-                        .unwrap(),
-                        target_range: treesitter_range_to_lsp(&entity.range),
-                        // Store the name key for the entity
-                        target_selection_range: treesitter_range_to_lsp(&entity.range),
-                        origin_selection_range: None,
-                    };
-                    return Some(GotoDefinitionResponse::Link(vec![link]));
-                }
+            if let Some(entity) = self.mod_api.entities.get(&text) {
+                let link = LocationLink {
+                    target_uri: Uri::from_str(&format!(
+                        "file://{}",
+                        self.root_path.join("mod_api.json").to_str().unwrap()
+                    ))
+                    .unwrap(),
+                    target_range: treesitter_range_to_lsp(&entity.range),
+                    // Store the name key for the entity
+                    target_selection_range: treesitter_range_to_lsp(&entity.range),
+                    origin_selection_range: None,
+                };
+                return Some(GotoDefinitionResponse::Link(vec![link]));
             }
 
             if let Some(func) = self.mod_api.game_functions.get(&text) {
