@@ -44,7 +44,11 @@ impl Server {
             if document.entity_type == text {
                 if let Some(entity) = self.mod_api.entities.get(&document.entity_type) {
                     let link = LocationLink {
-                        target_uri: Uri::from_str(&format!("file://{}", self.root_path.join("mod_api.json").to_str().unwrap())).unwrap(),
+                        target_uri: Uri::from_str(&format!(
+                            "file://{}",
+                            self.root_path.join("mod_api.json").to_str().unwrap()
+                        ))
+                        .unwrap(),
                         target_range: treesitter_range_to_lsp(&entity.range),
                         // Store the name key for the entity
                         target_selection_range: treesitter_range_to_lsp(&entity.range),
@@ -56,7 +60,11 @@ impl Server {
 
             if let Some(func) = self.mod_api.game_functions.get(&text) {
                 let link = LocationLink {
-                    target_uri: Uri::from_str(&format!("file://{}", self.root_path.join("mod_api.json").to_str().unwrap())).unwrap(),
+                    target_uri: Uri::from_str(&format!(
+                        "file://{}",
+                        self.root_path.join("mod_api.json").to_str().unwrap()
+                    ))
+                    .unwrap(),
                     target_range: treesitter_range_to_lsp(&func.range),
                     target_selection_range: treesitter_range_to_lsp(&func.range),
                     origin_selection_range: None,
@@ -84,6 +92,21 @@ impl Server {
             }
         }
         if node.kind() == "on_identifier" {
+            if let Some(entity) = self.mod_api.entities.get(&document.entity_type) {
+                if let Some(on_func) = entity.on_functions.get(&text) {
+                    let link = LocationLink {
+                        target_uri: Uri::from_str(&format!(
+                            "file://{}",
+                            self.root_path.join("mod_api.json").to_str().unwrap()
+                        ))
+                        .unwrap(),
+                        target_range: treesitter_range_to_lsp(&on_func.range),
+                        target_selection_range: treesitter_range_to_lsp(&on_func.range),
+                        origin_selection_range: None,
+                    };
+                    return Some(GotoDefinitionResponse::Link(vec![link]));
+                }
+            }
         }
         None
     }

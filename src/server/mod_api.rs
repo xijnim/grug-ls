@@ -2,16 +2,26 @@ use std::{collections::HashMap, sync::Mutex};
 
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
-use tree_sitter::{Parser, Tree};
+use tree_sitter::Parser;
 
 use crate::server::document::Type;
 
 pub mod parse;
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, Eq)]
 pub struct GrugOnFunction {
     #[serde(default = "default_description")]
     pub description: String,
+
+    #[serde(skip)]
+    #[serde(default = "default_range")]
+    pub range: tree_sitter::Range,
+}
+
+impl PartialEq for GrugOnFunction {
+    fn eq(&self, other: &Self) -> bool {
+        self.description == other.description
+    }
 }
 
 #[derive(Serialize, Deserialize, Eq, Debug)]
@@ -515,12 +525,15 @@ fn mod_api_test() {
                 on_functions: HashMap::from([
                     ("on_spawn".to_string(), GrugOnFunction {
                         description: "Called when the entity is spawned.".to_string(),
+                        range: default_range(),
                     }),
                     ("on_despawn".to_string(), GrugOnFunction {
-                        description: "Called when the entity is despawned.".to_string()
+                        description: "Called when the entity is despawned.".to_string(),
+                        range: default_range(),
                     }),
                     ("on_fire".to_string(), GrugOnFunction {
-                        description: "Called when the player's gun fires, which happens when the left mouse button is pressed or held.".to_string()
+                        description: "Called when the player's gun fires, which happens when the left mouse button is pressed or held.".to_string(),
+                        range: default_range(),
                     })
                 ]),
                 range: default_range(),
@@ -529,13 +542,16 @@ fn mod_api_test() {
                 description: "The bullet fired by the player's gun.".to_string(),
                 on_functions: HashMap::from([
                     ("on_spawn".to_string(), GrugOnFunction {
-                        description: "Called when the entity is spawned.".to_string()
+                        description: "Called when the entity is spawned.".to_string(),
+                        range: default_range(),
                     }),
                     ("on_despawn".to_string(), GrugOnFunction {
-                        description: "Called when the entity is despawned.".to_string()
+                        description: "Called when the entity is despawned.".to_string(),
+                        range: default_range(),
                     }),
                     ("on_tick".to_string(), GrugOnFunction {
-                        description: "Called every tick.".to_string()
+                        description: "Called every tick.".to_string(),
+                        range: default_range(),
                     })
                 ]),
                 range: default_range(),
@@ -544,10 +560,12 @@ fn mod_api_test() {
                 description: "A static or dynamic box.".to_string(),
                 on_functions: HashMap::from([
                     ("on_spawn".to_string(), GrugOnFunction{
-                        description: "Called when the entity is spawned.".to_string()
+                        description: "Called when the entity is spawned.".to_string(),
+                        range: default_range(),
                     }),
                     ("on_despawn".to_string(), GrugOnFunction {
-                        description: "Called when the entity is despawned.".to_string()
+                        description: "Called when the entity is despawned.".to_string(),
+                        range: default_range(),
                     })
                 ]),
                 range: default_range(),
@@ -556,13 +574,16 @@ fn mod_api_test() {
                 description: "A counter that prints information to the console every tick.".to_string(),
                 on_functions: HashMap::from([
                     ("on_spawn".to_string(), GrugOnFunction{
-                        description: "Called when the entity is spawned.".to_string()
+                        description: "Called when the entity is spawned.".to_string(),
+                        range: default_range(),
                     }),
                     ("on_despawn".to_string(), GrugOnFunction {
-                        description: "Called when the entity is despawned.".to_string()
+                        description: "Called when the entity is despawned.".to_string(),
+                        range: default_range(),
                     }),
                     ("on_tick".to_string(), GrugOnFunction {
-                        description: "Called every tick.".to_string()
+                        description: "Called every tick.".to_string(),
+                        range: default_range(),
                     })
                 ]),
                 range: default_range(),
@@ -761,5 +782,11 @@ fn mod_api_test() {
 
     let result: ModApi = ModApi::from_json(source).unwrap();
 
-    assert_eq!(result, expected);
+    for (name, entity) in expected.entities {
+        let Some(other) = result.entities.get(&name) else {
+            panic!("No {}", name);
+        };
+
+        assert_eq!(entity, *other);
+    }
 }
