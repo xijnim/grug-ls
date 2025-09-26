@@ -5,9 +5,7 @@ use lsp_types::{GotoDefinitionParams, GotoDefinitionResponse, LocationLink, Uri}
 use vfs::FileSystem;
 
 use crate::server::{
-    Server,
-    document::Document,
-    utils::{get_spot_info, treesitter_range_to_lsp},
+    document::Document, utils::{get_spot_info, is_function_call, treesitter_range_to_lsp}, Server
 };
 
 use log::info;
@@ -24,21 +22,23 @@ impl Server {
         let text = String::from_utf8(document.content[node.byte_range()].to_vec()).ok()?;
         info!("Trying to get definition for: {}", node.kind());
         if node.kind() == "identifier" {
-            if let Some(var) = spot_info.variables.iter().find(|var| var.name == text) {
-                let node = document
-                    .tree
-                    .root_node()
-                    .descendant_for_byte_range(var.range.start_byte, var.range.end_byte)
-                    .unwrap();
-                let link = LocationLink {
-                    target_uri: uri,
-                    target_range: treesitter_range_to_lsp(&node.range()),
-                    target_selection_range: treesitter_range_to_lsp(
-                        &node.child_by_field_name("name").unwrap().range(),
-                    ),
-                    origin_selection_range: None,
-                };
-                return Some(GotoDefinitionResponse::Link(vec![link]));
+            if !is_function_call(&node) {
+                if let Some(var) = spot_info.variables.iter().find(|var| var.name == text) {
+                    let node = document
+                        .tree
+                        .root_node()
+                        .descendant_for_byte_range(var.range.start_byte, var.range.end_byte)
+                        .unwrap();
+                    let link = LocationLink {
+                        target_uri: uri,
+                        target_range: treesitter_range_to_lsp(&node.range()),
+                        target_selection_range: treesitter_range_to_lsp(
+                            &node.child_by_field_name("name").unwrap().range(),
+                        ),
+                        origin_selection_range: None,
+                    };
+                    return Some(GotoDefinitionResponse::Link(vec![link]));
+                }
             }
 
             if let Some(entity) = self.mod_api.entities.get(&text) {

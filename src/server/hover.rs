@@ -3,10 +3,7 @@ use lsp_types::{Hover, HoverContents, HoverParams, MarkupContent, MarkupKind, Po
 use vfs::FileSystem;
 
 use crate::server::{
-    Server,
-    document::{Document, PRIMITIVE_TYPES},
-    mod_api::ModApi,
-    utils::get_spot_info,
+    document::{Document, PRIMITIVE_TYPES}, mod_api::ModApi, utils::{get_spot_info, is_function_call}, Server
 };
 
 struct HoverContent {
@@ -33,10 +30,13 @@ impl Server {
         if node.kind() == "identifier" {
             let name = &document.content[range];
             let spot_info = get_spot_info(document, node);
-            for var in spot_info.variables.into_iter() {
-                if var.name.as_bytes() == name {
-                    let code = format!("{}: {}", var.name, var.r#type.as_str());
-                    return Some(HoverContent::new_code_only(code));
+
+            if !is_function_call(&node) {
+                for var in spot_info.variables.into_iter() {
+                    if var.name.as_bytes() == name {
+                        let code = format!("{}: {}", var.name, var.r#type.as_str());
+                        return Some(HoverContent::new_code_only(code));
+                    }
                 }
             }
 

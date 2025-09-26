@@ -156,3 +156,11 @@ pub fn treesitter_range_to_lsp(range: &tree_sitter::Range) -> lsp_types::Range {
     }
 }
 
+pub fn is_function_call(node: &Node) -> bool {
+    let Some(parent) = node.parent() else {
+        return false;
+    };
+
+    parent.kind() == "function_call"
+}
+
