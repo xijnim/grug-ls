@@ -39,6 +39,7 @@ fn main() {
         text_document_sync: Some(TextDocumentSyncCapability::Kind(TextDocumentSyncKind::FULL)),
         hover_provider: Some(HoverProviderCapability::Simple(true)),
         completion_provider: Some(CompletionOptions::default()),
+        definition_provider: Some(lsp_types::OneOf::Left(true)),
 
         ..Default::default()
     };

@@ -2,19 +2,24 @@ use std::{borrow::Borrow, collections::HashMap};
 
 use lazy_static::lazy_static;
 
-lazy_static! (
+lazy_static! {
     pub static ref PRIMITIVE_TYPES: HashMap<&'static str, &'static str> = HashMap::from([
         ("resource", "A resource, such as an image or audio file"),
         ("f32", "A 32 bit floating point number"),
         ("i32", "A 32 bit integer"),
-        ("id", "An opaque type. It can represent anything external to the language."),
-        ("entity", "Holds names of types of entities (e.g. modname:entityname)"),
+        (
+            "id",
+            "An opaque type. It can represent anything external to the language."
+        ),
+        (
+            "entity",
+            "Holds names of types of entities (e.g. modname:entityname)"
+        ),
         ("string", "Represents text"),
     ]);
-);
+}
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[derive(PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Type {
     I32,
     F32,
@@ -53,10 +58,12 @@ impl Type {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Variable {
     pub name: String,
     pub r#type: Type,
+
+    pub range: tree_sitter::Range,
 }
 
 impl Variable {
@@ -72,6 +79,7 @@ pub struct Function {
     pub name: String,
     pub params: Vec<Parameter>,
     pub ret_type: Option<Type>,
+    pub range: tree_sitter::Range,
 }
 
 impl Function {
@@ -149,7 +157,7 @@ pub mod parser_utils {
 
         let kind = Type::from_str(kind);
 
-        return Ok(Variable { name, r#type: kind });
+        return Ok(Variable { name, r#type: kind, range: node.range() });
     }
 }
 
@@ -222,7 +230,7 @@ impl Document {
                                 let kind = String::from_utf8(kind.to_vec()).ok()?;
                                 let kind = Type::from_str(kind);
 
-                                Some(Parameter { name, r#type: kind })
+                                Some(Parameter { name, r#type: kind, range: param.range() })
                             })
                             .into_iter()
                             .collect();
@@ -231,6 +239,7 @@ impl Document {
                             name,
                             params,
                             ret_type,
+                            range: decl.range(),
                         })
                     })
                     .collect()

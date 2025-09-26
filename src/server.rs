@@ -1,5 +1,5 @@
 use lsp_server::{Connection, Message};
-use lsp_types::{ClientCapabilities, CompletionParams, DidChangeTextDocumentParams, DidOpenTextDocumentParams, HoverParams};
+use lsp_types::{ClientCapabilities, CompletionParams, DidChangeTextDocumentParams, DidOpenTextDocumentParams, GotoDefinitionParams, HoverParams};
 use serde::{Deserialize, Serialize};
 use tree_sitter::Parser;
 use vfs::MemoryFS;
@@ -19,6 +19,7 @@ mod mod_api;
 mod text_sync;
 mod utils;
 mod completion;
+mod goto_definition;
 
 use log::error;
 use log::info;
@@ -112,6 +113,11 @@ impl Server {
                     serde_json::from_value(params).unwrap();
 
                 self.handle_completion(req, connection, id.unwrap());
+            }
+            "textDocument/definition" => {
+                let params: GotoDefinitionParams = serde_json::from_value(params).unwrap();
+
+                self.handle_goto_definition(params, connection, id.unwrap());
             }
             "exit" => {
                 self.should_exit = true;

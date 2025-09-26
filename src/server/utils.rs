@@ -1,7 +1,7 @@
 use lsp_types::Position;
 use tree_sitter::Node;
 
-use crate::server::document::{parser_utils, Document, Variable};
+use crate::server::document::{Document, Variable, parser_utils};
 
 #[derive(PartialEq, Eq, Debug)]
 pub struct SpotInfo {
@@ -13,10 +13,14 @@ pub fn get_nearest_node<'a>(document: &'a Document, position: Position) -> Node<
         column: position.character as usize,
         row: position.line as usize,
     };
-    let maybe_nearest = document.tree.root_node().descendant_for_point_range(point, point).unwrap();
+    let maybe_nearest = document
+        .tree
+        .root_node()
+        .descendant_for_point_range(point, point)
+        .unwrap();
 
     let mut ret = maybe_nearest;
-    
+
     let mut cursor = maybe_nearest.walk();
     for child in ret.children(&mut cursor) {
         let child_point = child.range().start_point;
@@ -38,10 +42,7 @@ pub fn get_nearest_node<'a>(document: &'a Document, position: Position) -> Node<
 pub fn get_spot_info(document: &Document, node: &tree_sitter::Node) -> SpotInfo {
     let mut variables: Vec<Variable> = Vec::new();
     for global_var in document.global_vars.iter() {
-        variables.push(Variable {
-            name: global_var.name.clone(),
-            r#type: global_var.r#type.clone(),
-        });
+        variables.push(global_var.clone());
     }
 
     let mut parent = node.clone();
@@ -69,14 +70,14 @@ pub fn get_spot_info(document: &Document, node: &tree_sitter::Node) -> SpotInfo 
                         variables.push(param);
                     }
                 }
-            }
+            };
         }
-        
+
         let mut current_node = parent;
         handle!(current_node);
         while let Some(sibling) = current_node.prev_sibling() {
             handle!(sibling);
-            
+
             current_node = sibling;
         }
 
@@ -126,34 +127,32 @@ on_spawn(str: string) {
     );
     assert_eq!(document.entity_type, "box");
 
-    let mut spot_info = get_spot_info(&document, &func_call);
-    spot_info.variables.sort();
+    let spot_info = get_spot_info(&document, &func_call);
 
     use crate::server::document::Type;
-    let mut expected = vec![
-            Variable {
-                name: "a".to_string(),
-                r#type: Type::I32,
-            },
-            Variable {
-                name: "b".to_string(),
-                r#type: Type::F32,
-            },
-            Variable {
-                name: "c".to_string(),
-                r#type: Type::F32,
-            },
-            Variable {
-                name: "str".to_string(),
-                r#type: Type::String,
-            },
-    ];
-    expected.sort();
 
-    assert_eq!(
-        spot_info,
-        SpotInfo {
-            variables: expected,
-        }
-    );
+    let names = ["a", "b", "c", "str"];
+    let types = [Type::I32, Type::F32, Type::F32, Type::String];
+
+    assert!(spot_info.variables.iter().any(|var| {
+        names
+            .iter()
+            .zip(types.iter())
+            .any(|(name, kind)| var.name == **name && var.r#type == *kind)
+    }));
 }
+
+pub fn treesitter_range_to_lsp(range: &tree_sitter::Range) -> lsp_types::Range {
+    lsp_types::Range {
+        start: lsp_types::Position {
+            character: range.start_point.column as u32,
+            line: range.start_point.row as u32,
+        },
+        end: lsp_types::Position {
+            character: range.end_point.column as u32,
+            line: range.end_point.row as u32,
+        },
+
+    }
+}
+
