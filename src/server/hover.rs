@@ -15,9 +15,6 @@ impl HoverContent {
     pub fn new_code_only(code: String) -> HoverContent {
         HoverContent { code, text: "".to_string() }
     }
-    pub fn new_text_only(text: String) -> HoverContent {
-        HoverContent { code: "".to_string(), text }
-    }
 }
 
 impl Server {

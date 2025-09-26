@@ -1,49 +1,12 @@
 use std::{path::PathBuf, str::FromStr};
 
 use lsp_types::InitializeParams;
-use serde::{Deserialize, Serialize};
+use serde::{Serialize};
 use vfs::MemoryFS;
 
 use crate::{server::{helper::spawn_worker, mod_api::ModApi, Server}};
 
-use std::collections::HashMap;
-
 use log::error;
-
-#[derive(Serialize, Deserialize)]
-pub struct ServerInfo {
-    pub name: String,
-    pub version: Option<String>,
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct InitResponse {
-    pub id: serde_json::Value,
-    pub result: InitResult,
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct InitResult {
-    pub capabilities: ServerCapabilities,
-
-    #[serde(rename = "serverInfo")]
-    pub server_info: Option<ServerInfo>,
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct ServerCapabilities {
-    #[serde(rename = "positionEncoding")]
-    pub position_encoding: String,
-
-    #[serde(rename = "textDocumentSync")]
-    pub text_document_sync: usize,
-
-    #[serde(rename = "hoverProvider")]
-    pub hover_provider: bool,
-
-    #[serde(rename = "completionProvider")]
-    pub completion_provider: HashMap<(), ()>,
-}
 
 #[derive(Debug, Serialize)]
 pub enum ServerInitError {
