@@ -1,5 +1,9 @@
+use std::collections::HashMap;
+
 use lsp_server::{Connection, Message, RequestId, Response};
-use lsp_types::{CompletionItem, CompletionItemKind, CompletionParams, Documentation};
+use lsp_types::{
+    CompletionItem, CompletionItemKind, CompletionParams, Documentation, InsertTextFormat, MarkupContent, MarkupKind,
+};
 
 use crate::server::{
     Server,
@@ -8,6 +12,30 @@ use crate::server::{
 };
 
 use log::info;
+
+struct SnippetCompletion {
+    label: &'static str,
+    snippet: &'static str,
+    doc: &'static str,
+}
+
+const KEYWORD_COMPLETIONS: [SnippetCompletion; 3] = [
+    SnippetCompletion {
+        label: "if",
+        snippet: "if ${1:condition} {\n\t$0\n}",
+        doc: "Executes code if the condition is true",
+    },
+    SnippetCompletion {
+        label: "while",
+        snippet: "while ${1:condition} {\n\t$0\n}",
+        doc: "Continues repeating code while the condition is true",
+    },
+    SnippetCompletion {
+        label: "return",
+        snippet: "return ${1:value}",
+        doc: "Stops executing the current function, and returns a specific value",
+    }
+];
 
 impl Server {
     pub fn get_completion(
@@ -41,14 +69,47 @@ impl Server {
         }
 
         for (name, game_func) in self.mod_api.game_functions.iter() {
+            let markup = MarkupContent {
+                kind: MarkupKind::Markdown,
+                value: game_func.description.clone(),
+            };
+
+            let mut snippet = format!("{}(", name);
+            for (idx, param) in game_func.arguments.iter().enumerate() {
+                snippet.push_str(&format!("${{{}:{}}}", idx+1, param.get_name()));
+                if idx < game_func.arguments.len()-1 {
+                    snippet.push_str(", ");
+                }
+            }
+            snippet.push(')');
+
+            info!("{}", snippet);
+
             items.push(CompletionItem {
                 label: name.clone(),
                 detail: Some(format!("{}\n", game_func.format(name))),
-                documentation: Some(Documentation::String(game_func.description.clone())),
+                documentation: Some(Documentation::MarkupContent(markup)),
+                insert_text_format: Some(InsertTextFormat::SNIPPET),
+                insert_text: Some(snippet),
                 kind: Some(CompletionItemKind::FUNCTION),
 
                 ..Default::default()
             });
+        }
+
+        for snippet in KEYWORD_COMPLETIONS.iter() {
+            let markup = MarkupContent {
+                kind: MarkupKind::Markdown,
+                value: snippet.doc.to_string(),
+            };
+            items.push(CompletionItem {
+                label: snippet.label.to_string(),
+                kind: Some(CompletionItemKind::SNIPPET),
+                insert_text_format: Some(InsertTextFormat::SNIPPET),
+                insert_text: Some(snippet.snippet.to_string()),
+                documentation: Some(Documentation::MarkupContent(markup)),
+                ..Default::default()
+            })
         }
 
         if "source_file"
@@ -64,10 +125,14 @@ impl Server {
                         .iter()
                         .any(|func| func.name == *func_name)
                     {
+                        let markup = MarkupContent {
+                            kind: MarkupKind::Markdown,
+                            value: func.description.clone(),
+                        };
                         items.push(CompletionItem {
                             label: func_name.clone(),
                             detail: Some(func_name.clone()),
-                            documentation: Some(Documentation::String(func.description.clone())),
+                            documentation: Some(Documentation::MarkupContent(markup)),
                             kind: Some(CompletionItemKind::FUNCTION),
 
                             ..Default::default()
