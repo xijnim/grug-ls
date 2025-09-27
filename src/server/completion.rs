@@ -2,7 +2,8 @@ use std::collections::HashMap;
 
 use lsp_server::{Connection, Message, RequestId, Response};
 use lsp_types::{
-    CompletionItem, CompletionItemKind, CompletionParams, Documentation, InsertTextFormat, MarkupContent, MarkupKind,
+    CompletionItem, CompletionItemKind, CompletionParams, Documentation, InsertTextFormat,
+    MarkupContent, MarkupKind,
 };
 
 use crate::server::{
@@ -34,7 +35,7 @@ const KEYWORD_COMPLETIONS: [SnippetCompletion; 3] = [
         label: "return",
         snippet: "return ${1:value}",
         doc: "Stops executing the current function, and returns a specific value",
-    }
+    },
 ];
 
 impl Server {
@@ -76,8 +77,8 @@ impl Server {
 
             let mut snippet = format!("{}(", name);
             for (idx, param) in game_func.arguments.iter().enumerate() {
-                snippet.push_str(&format!("${{{}:{}}}", idx+1, param.get_name()));
-                if idx < game_func.arguments.len()-1 {
+                snippet.push_str(&format!("${{{}:{}}}", idx + 1, param.get_name()));
+                if idx < game_func.arguments.len() - 1 {
                     snippet.push_str(", ");
                 }
             }
@@ -158,6 +159,7 @@ impl Server {
         let text = if let Ok(src) = str::from_utf8(&document.content) {
             src
         } else {
+            log::error!("Invalid message: {:?}", document.content);
             return;
         };
 
@@ -189,7 +191,11 @@ impl Server {
         }
         let node = get_nearest_node(document, params.text_document_position.position);
 
-        let completion = if is_type {
+        let is_string = node.kind() == "string";
+
+        let completion = if is_string {
+            Vec::new()
+        } else if is_type {
             let mut completion: Vec<CompletionItem> = Vec::new();
 
             for (name, entity) in self.mod_api.entities.iter() {
