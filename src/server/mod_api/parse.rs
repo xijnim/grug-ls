@@ -1,25 +1,8 @@
 use std::collections::HashMap;
 
-use serde::{de::DeserializeOwned};
 use tree_sitter::Node;
 
 use crate::server::mod_api::{GrugEntity, GrugGameFunction, GrugOnFunction, JSON_PARSER, ModApi};
-
-trait ModApiEntry {
-    fn set_range(&mut self, range: tree_sitter::Range);
-}
-
-impl ModApiEntry for GrugEntity {
-    fn set_range(&mut self, range: tree_sitter::Range) {
-        self.range = range;
-    }
-}
-
-impl ModApiEntry for GrugGameFunction {
-    fn set_range(&mut self, range: tree_sitter::Range) {
-        self.range = range;
-    }
-}
 
 impl ModApi {
     fn parse_game_functions(
@@ -85,9 +68,7 @@ impl ModApi {
                         continue;
                     }
                     let desc = obj.child(1).unwrap();
-                    if let Ok(desc) =
-                        String::from_utf8(json[desc.byte_range()].to_vec())
-                    {
+                    if let Ok(desc) = String::from_utf8(json[desc.byte_range()].to_vec()) {
                         description = desc;
                     }
                 }
@@ -120,7 +101,8 @@ impl ModApi {
                         }
 
                         let obj = &json[obj.byte_range()];
-                        let Ok(mut on_function) = serde_json::from_slice::<GrugOnFunction>(obj) else {
+                        let Ok(mut on_function) = serde_json::from_slice::<GrugOnFunction>(obj)
+                        else {
                             continue;
                         };
                         on_function.range = func_entry.range();

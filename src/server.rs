@@ -1,25 +1,24 @@
 use lsp_server::{Connection, Message};
-use lsp_types::{ClientCapabilities, CompletionParams, DidChangeTextDocumentParams, DidOpenTextDocumentParams, GotoDefinitionParams, HoverParams};
+use lsp_types::{
+    ClientCapabilities, CompletionParams, DidChangeTextDocumentParams, DidOpenTextDocumentParams,
+    GotoDefinitionParams, HoverParams,
+};
 use serde::{Deserialize, Serialize};
 use tree_sitter::Parser;
 use vfs::MemoryFS;
 
-use crate::{
-    server::{
-        document::Document, helper::ServerUpdate, mod_api::ModApi,
-    }
-};
+use crate::server::{document::Document, helper::ServerUpdate, mod_api::ModApi};
 use std::{collections::HashMap, path::PathBuf, sync::mpsc::Receiver};
 
+mod completion;
 mod document;
+mod goto_definition;
 mod helper;
 mod hover;
 pub mod init;
 mod mod_api;
 mod text_sync;
 mod utils;
-mod completion;
-mod goto_definition;
 
 use log::error;
 use log::info;
@@ -39,7 +38,6 @@ impl ServerWrapper {
     pub fn new() -> ServerWrapper {
         ServerWrapper::Inactive
     }
-
 }
 
 #[derive(Serialize, Deserialize, Debug, Default)]
@@ -67,16 +65,17 @@ pub struct Server {
 }
 
 impl Server {
-    pub fn handle_message(&mut self, message: Message, connection: &mut Connection, parser: &mut Parser) {
+    pub fn handle_message(
+        &mut self,
+        message: Message,
+        connection: &mut Connection,
+        parser: &mut Parser,
+    ) {
         self.handle_worker_messages();
 
         let (id, method, params) = match message {
-            Message::Request(req) => {
-                (Some(req.id), req.method, req.params)
-            }
-            Message::Notification(notif) => {
-                (None, notif.method, notif.params)
-            }
+            Message::Request(req) => (Some(req.id), req.method, req.params),
+            Message::Notification(notif) => (None, notif.method, notif.params),
             _ => {
                 return;
             }
@@ -103,14 +102,12 @@ impl Server {
                 self.should_exit = true;
             }
             "textDocument/hover" => {
-                let req: HoverParams =
-                    serde_json::from_value(params).unwrap();
+                let req: HoverParams = serde_json::from_value(params).unwrap();
 
                 self.handle_hover(req, connection, id.unwrap());
             }
             "textDocument/completion" => {
-                let req: CompletionParams =
-                    serde_json::from_value(params).unwrap();
+                let req: CompletionParams = serde_json::from_value(params).unwrap();
 
                 self.handle_completion(req, connection, id.unwrap());
             }

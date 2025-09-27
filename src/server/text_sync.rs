@@ -13,11 +13,7 @@ use log::error;
 use log::info;
 
 impl Server {
-    pub fn handle_did_open(
-        &mut self,
-        params: DidOpenTextDocumentParams,
-        parser: &mut Parser,
-    ) {
+    pub fn handle_did_open(&mut self, params: DidOpenTextDocumentParams, parser: &mut Parser) {
         let uri = params.text_document.uri.as_str();
         // We probably wont need to use this server on TCP
         assert!(uri.starts_with("file://"));
@@ -60,11 +56,7 @@ impl Server {
         }
     }
 
-    pub fn handle_did_change(
-        &mut self,
-        params: DidChangeTextDocumentParams,
-        parser: &mut Parser,
-    ) {
+    pub fn handle_did_change(&mut self, params: DidChangeTextDocumentParams, parser: &mut Parser) {
         let uri = params.text_document.uri.as_str();
         assert!(uri.starts_with("file://"));
 
@@ -77,7 +69,7 @@ impl Server {
         *document = Document::new(
             parser,
             params.content_changes[0].text.as_bytes().to_vec(),
-            file_name
+            file_name,
         );
     }
 }

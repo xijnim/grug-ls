@@ -157,7 +157,11 @@ pub mod parser_utils {
 
         let kind = Type::from_str(kind);
 
-        return Ok(Variable { name, r#type: kind, range: node.range() });
+        return Ok(Variable {
+            name,
+            r#type: kind,
+            range: node.range(),
+        });
     }
 }
 
@@ -230,7 +234,11 @@ impl Document {
                                 let kind = String::from_utf8(kind.to_vec()).ok()?;
                                 let kind = Type::from_str(kind);
 
-                                Some(Parameter { name, r#type: kind, range: param.range() })
+                                Some(Parameter {
+                                    name,
+                                    r#type: kind,
+                                    range: param.range(),
+                                })
                             })
                             .into_iter()
                             .collect();

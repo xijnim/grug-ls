@@ -152,7 +152,6 @@ pub fn treesitter_range_to_lsp(range: &tree_sitter::Range) -> lsp_types::Range {
             character: range.end_point.column as u32,
             line: range.end_point.row as u32,
         },
-
     }
 }
 
@@ -163,4 +162,3 @@ pub fn is_function_call(node: &Node) -> bool {
 
     parent.kind() == "function_call"
 }
-

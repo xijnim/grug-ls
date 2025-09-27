@@ -1,10 +1,10 @@
 use std::{path::PathBuf, str::FromStr};
 
 use lsp_types::InitializeParams;
-use serde::{Serialize};
+use serde::Serialize;
 use vfs::MemoryFS;
 
-use crate::{server::{helper::spawn_worker, mod_api::ModApi, Server}};
+use crate::server::{Server, helper::spawn_worker, mod_api::ModApi};
 
 use log::error;
 
@@ -50,7 +50,11 @@ impl Server {
 
         if root_path.is_relative() {
             // Vscode
-            if let Some(cwd) = std::env::current_dir().ok().map(|cwd| cwd.parent().map(|p| p.to_path_buf())).flatten() {
+            if let Some(cwd) = std::env::current_dir()
+                .ok()
+                .map(|cwd| cwd.parent().map(|p| p.to_path_buf()))
+                .flatten()
+            {
                 root_path = cwd.join(root_path);
             }
         }
@@ -58,7 +62,11 @@ impl Server {
         let mod_api_json = match std::fs::read_to_string(&root_path.join("mod_api.json")) {
             Ok(json) => json,
             Err(err) => {
-                return Err(ServerInitError::ModApiIOError(format!("At {}: {}", root_path.to_string_lossy().into_owned(), err.to_string())));
+                return Err(ServerInitError::ModApiIOError(format!(
+                    "At {}: {}",
+                    root_path.to_string_lossy().into_owned(),
+                    err.to_string()
+                )));
             }
         };
         let mod_api: ModApi = ModApi::from_json(&mod_api_json).unwrap_or(ModApi::default());

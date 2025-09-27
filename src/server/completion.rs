@@ -2,7 +2,9 @@ use lsp_server::{Connection, Message, RequestId, Response};
 use lsp_types::{CompletionItem, CompletionItemKind, CompletionParams, Documentation};
 
 use crate::server::{
-    document::{Document, PRIMITIVE_TYPES}, utils::{get_nearest_node, get_spot_info}, Server
+    Server,
+    document::{Document, PRIMITIVE_TYPES},
+    utils::{get_nearest_node, get_spot_info},
 };
 
 use log::info;
@@ -75,7 +77,6 @@ impl Server {
             }
         }
 
-
         items
     }
 
@@ -89,13 +90,16 @@ impl Server {
         let path = &uri["file.//".len()..];
         let document = self.document_map.get(path).unwrap();
 
-        let text = if let Ok(src) =  str::from_utf8(&document.content) {
+        let text = if let Ok(src) = str::from_utf8(&document.content) {
             src
         } else {
             return;
         };
 
-        let line = if let Some(line) = text.lines().nth(params.text_document_position.position.line as usize) {
+        let line = if let Some(line) = text
+            .lines()
+            .nth(params.text_document_position.position.line as usize)
+        {
             line
         } else {
             return;
@@ -142,16 +146,6 @@ impl Server {
                     ..Default::default()
                 });
             }
-
-            // for (type_name, type_desc) in PRI {
-            //     completion.push(CompletionItem {
-            //         label: type_name.to_string(),
-            //         documentation: Some(Documentation::String(entity.description.clone())),
-            //         kind: Some(CompletionItemKind::CLASS),
-            //
-            //         ..Default::default()
-            //     })
-            // }
 
             completion
         } else {

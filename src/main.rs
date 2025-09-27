@@ -3,14 +3,14 @@ use grug_ls::server::Server;
 use log::error;
 use log::info;
 use lsp_server::{Connection, ErrorCode, Response};
-use lsp_types::{CompletionOptions, InitializeResult, ServerInfo};
 use lsp_types::HoverProviderCapability;
 use lsp_types::InitializeParams;
 use lsp_types::ServerCapabilities;
 use lsp_types::TextDocumentSyncCapability;
 use lsp_types::TextDocumentSyncKind;
-use structured_logger::json::new_writer;
+use lsp_types::{CompletionOptions, InitializeResult, ServerInfo};
 use structured_logger::Builder;
+use structured_logger::json::new_writer;
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
@@ -43,7 +43,7 @@ fn main() {
 
         ..Default::default()
     };
-    
+
     let (mut server, id) = match connection.initialize_start() {
         Ok((req_id, value)) => {
             let params: InitializeParams = serde_json::from_value(value).unwrap();
@@ -55,7 +55,8 @@ fn main() {
                     let err = serde_json::to_string(&err).unwrap();
                     error!("{:?}", err);
 
-                    let res = Response::new_err(req_id.clone(), ErrorCode::InvalidRequest as i32, err);
+                    let res =
+                        Response::new_err(req_id.clone(), ErrorCode::InvalidRequest as i32, err);
                     let res = serde_json::to_value(res).unwrap();
                     connection.initialize_finish(req_id, res).unwrap();
 
@@ -99,5 +100,4 @@ fn main() {
         }
     }
     io_threads.join().unwrap();
-
 }

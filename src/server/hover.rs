@@ -3,7 +3,10 @@ use lsp_types::{Hover, HoverContents, HoverParams, MarkupContent, MarkupKind, Po
 use vfs::FileSystem;
 
 use crate::server::{
-    document::{Document, PRIMITIVE_TYPES}, mod_api::ModApi, utils::{get_spot_info, is_function_call}, Server
+    Server,
+    document::{Document, PRIMITIVE_TYPES},
+    mod_api::ModApi,
+    utils::{get_spot_info, is_function_call},
 };
 
 struct HoverContent {
