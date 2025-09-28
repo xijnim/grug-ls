@@ -93,11 +93,20 @@ fn main() {
     loop {
         let message: lsp_server::Message = connection.receiver.recv().unwrap();
 
+        if let lsp_server::Message::Request(ref req) = message {
+            if connection.handle_shutdown(req).unwrap_or(true) {
+                break;
+            }
+        }
+
         server.handle_message(message, &mut connection, &mut parser);
 
         if server.should_exit {
             break;
         }
     }
+    info!("Exiting lsp");
+
+    drop(connection);
     io_threads.join().unwrap();
 }
