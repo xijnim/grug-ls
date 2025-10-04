@@ -20,7 +20,6 @@ cargo build
 ```
 
 After that, the process is editor specific on how to add a language server.
-Also, if you want to see the logs for the server go to /tmp/grug-ls-logs.json
 
 ### Neovim
 Using lspconfig, you can simply add this code to your init.lua
@@ -58,3 +57,12 @@ require("lspconfig").grug.setup({
 
 ### VSCode
 Go install the vscode extension called "grug"
+
+## Development
+For debugging the LSP, go to the project's directory and run:
+```bash
+ln -s "$(pwd)/target/debug/grug-ls" ~/.local/bin/grug-ls
+```
+That way, you can use your text editor and the LSP will use the one you get using `cargo build`
+
+For analyzing logs, you can check /tmp/grug-ls-logs.json
