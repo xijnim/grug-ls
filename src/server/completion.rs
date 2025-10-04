@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use lsp_server::{Connection, Message, RequestId, Response};
 use lsp_types::{
     CompletionItem, CompletionItemKind, CompletionParams, Documentation, InsertTextFormat,

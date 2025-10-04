@@ -44,6 +44,7 @@ impl Server {
                     parser,
                     params.text_document.text.as_bytes().to_vec(),
                     file_name,
+                    params.text_document.uri,
                 );
                 info!("New document: {:?}", document);
                 self.document_map.insert(path.to_string(), document);
@@ -70,6 +71,7 @@ impl Server {
             parser,
             params.content_changes[0].text.as_bytes().to_vec(),
             file_name,
+            params.text_document.uri,
         );
     }
 }

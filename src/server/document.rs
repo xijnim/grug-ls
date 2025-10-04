@@ -1,6 +1,7 @@
 use std::{borrow::Borrow, collections::HashMap};
 
 use lazy_static::lazy_static;
+use lsp_types::Uri;
 
 lazy_static! {
     pub static ref PRIMITIVE_TYPES: HashMap<&'static str, &'static str> = HashMap::from([
@@ -115,6 +116,7 @@ pub struct Document {
     pub global_vars: Vec<Variable>,
     pub helpers: Vec<Function>,
     pub on_functions: Vec<Function>,
+    pub uri: Uri,
 }
 
 pub mod parser_utils {
@@ -166,7 +168,7 @@ pub mod parser_utils {
 }
 
 impl Document {
-    pub fn new(parser: &mut tree_sitter::Parser, content: Vec<u8>, name: String) -> Document {
+    pub fn new(parser: &mut tree_sitter::Parser, content: Vec<u8>, name: String, uri: Uri) -> Document {
         let tree = parser.parse(&content, None).unwrap();
 
         let mut cursor = tree.root_node().walk();
@@ -272,6 +274,7 @@ impl Document {
             helpers,
             on_functions,
             entity_type: entity_type.to_string(),
+            uri,
         }
     }
 }

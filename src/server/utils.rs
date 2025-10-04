@@ -124,6 +124,7 @@ on_spawn(str: string) {
         &mut parser,
         source.as_bytes().to_vec(),
         "tired-box.grug".to_string(),
+        lsp_types::Uri::from_str("some_uri").unwrap(),
     );
     assert_eq!(document.entity_type, "box");
 
