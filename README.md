@@ -63,6 +63,6 @@ For debugging the LSP, go to the project's directory and run:
 ```bash
 ln -s "$(pwd)/target/debug/grug-ls" ~/.local/bin/grug-ls
 ```
-That way, you can use your text editor and the LSP will use the one you get using `cargo build`
+That way, you can use your text editor and the Language Client will use the one you get using `cargo build`
 
 For analyzing logs, you can check /tmp/grug-ls-logs.json
