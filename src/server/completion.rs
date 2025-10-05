@@ -82,8 +82,6 @@ impl Server {
             }
             snippet.push(')');
 
-            info!("{}", snippet);
-
             items.push(CompletionItem {
                 label: name.clone(),
                 detail: Some(format!("{}\n", game_func.format(name))),

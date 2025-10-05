@@ -5,6 +5,7 @@ use log::info;
 use lsp_server::{Connection, ErrorCode, Response};
 use lsp_types::HoverProviderCapability;
 use lsp_types::InitializeParams;
+use lsp_types::OneOf;
 use lsp_types::ServerCapabilities;
 use lsp_types::TextDocumentSyncCapability;
 use lsp_types::TextDocumentSyncKind;
@@ -46,6 +47,7 @@ fn main() {
                 work_done_progress: None,
             },
         })),
+        document_formatting_provider: Some(OneOf::Left(true)),
 
         ..Default::default()
     };

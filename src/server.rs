@@ -1,11 +1,11 @@
 use lsp_server::{Connection, Message};
+use lsp_types::Uri;
 use lsp_types::{
     ClientCapabilities, CompletionParams, DidChangeTextDocumentParams, DidOpenTextDocumentParams,
     GotoDefinitionParams, HoverParams,
 };
-use serde::{Deserialize, Serialize};
 use tree_sitter::Parser;
-use vfs::MemoryFS;
+use vfs::{FileSystem, MemoryFS};
 
 use crate::server::{document::Document, helper::ServerUpdate, mod_api::ModApi};
 use std::{collections::HashMap, path::PathBuf, sync::mpsc::Receiver};
@@ -20,6 +20,7 @@ mod mod_api;
 mod text_sync;
 mod utils;
 mod rename;
+mod formatting;
 
 use log::error;
 use log::info;
@@ -27,19 +28,6 @@ use log::info;
 pub enum ServerFileElement {
     File(String),
     Directory(String, Vec<ServerFileElement>),
-}
-
-#[derive(Serialize, Deserialize, Debug, Default)]
-struct TextDocumentClientCapabilities {
-    #[serde(default)]
-    synchronization: TextDocumentSyncClientCapabilities,
-}
-
-#[derive(Serialize, Deserialize, Debug, Default)]
-struct TextDocumentSyncClientCapabilities {
-    #[serde(rename = "dynamicRegistration")]
-    #[serde(default)]
-    dynamic_registration: bool,
 }
 
 #[derive(Debug)]
@@ -54,6 +42,21 @@ pub struct Server {
 }
 
 impl Server {
+    pub fn get_document_by_uri<'a>(&'a self, uri: &Uri) -> Option<&'a Document> {
+        let uri = uri.as_str();
+        // We probably wont need to use this server on TCP
+        assert!(uri.starts_with("file://"));
+
+        let path = &uri["file.//".len()..];
+
+        if !self.file_system.exists(path).unwrap_or(false) {
+            return None;
+        }
+
+        self.document_map.get(path)
+
+    }
+
     pub fn handle_message(
         &mut self,
         message: Message,
@@ -109,7 +112,11 @@ impl Server {
                 let params: lsp_types::RenameParams = serde_json::from_value(params).unwrap();
 
                 self.rename(params, connection, id.unwrap());
+            }
+            "textDocument/formatting" => {
+                let params: lsp_types::DocumentFormattingParams = serde_json::from_value(params).unwrap();
 
+                self.formatting(params, connection, id.unwrap());
             }
             "exit" => {
                 self.should_exit = true;
