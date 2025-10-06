@@ -169,7 +169,7 @@ impl Server {
                 let mut line_idx: usize = 0;
                 let mut can_push_line = false;
                 while line_idx < line_amt && current_child < children.len() {
-                    let child = &children[current_child];
+                    let mut child = &children[current_child];
                     if line_idx >= child.start_position().row {
                         let new_line = Self::format_node(content, child);
                         let mut new_line: Vec<String> = new_line
@@ -180,6 +180,12 @@ impl Server {
 
                         current_child += 1;
                         can_push_line = true;
+
+                        if let Some(next_child) = children.get(current_child) {
+                            child = next_child;
+                        } else {
+                            break;
+                        }
                     }
 
                     if content_lines[line_idx]
@@ -191,7 +197,13 @@ impl Server {
                         can_push_line = false;
                     }
 
-                    line_idx += 1;
+                    if line_idx < child.start_position().row {
+                        line_idx += 1;
+                    }
+                }
+
+                if children.len() == 0 {
+                    stmt_lines.push("".to_string());
                 }
 
                 lines.append(&mut stmt_lines);
@@ -219,13 +231,19 @@ impl Server {
                 let mut line_idx: usize = 0;
                 let mut can_push_line = false;
                 while line_idx < line_amt && current_child < children.len() {
-                    let child = &children[current_child];
+                    let mut child = &children[current_child];
                     if line_idx >= child.start_position().row {
                         let mut new_line = Self::format_node(content, child);
                         stmt_lines.append(&mut new_line);
 
                         current_child += 1;
                         can_push_line = true;
+
+                        if let Some(next_child) = children.get(current_child) {
+                            child = next_child;
+                        } else {
+                            break;
+                        }
                     }
 
                     if content_lines[line_idx]
@@ -237,7 +255,9 @@ impl Server {
                         can_push_line = false;
                     }
 
-                    line_idx += 1;
+                    if line_idx < child.start_position().row {
+                        line_idx += 1;
+                    }
                 }
 
                 lines.append(&mut stmt_lines);
