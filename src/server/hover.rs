@@ -3,10 +3,7 @@ use lsp_types::{Hover, HoverContents, HoverParams, MarkupContent, MarkupKind, Po
 use vfs::FileSystem;
 
 use crate::server::{
-    Server,
-    document::{Document, PRIMITIVE_TYPES},
-    mod_api::ModApi,
-    utils::{get_spot_info, is_function_call},
+    document::{Document, KEYWORDS, PRIMITIVE_TYPES, STATEMENT_SNIPPETS}, mod_api::ModApi, utils::{get_spot_info, is_function_call}, Server
 };
 
 struct HoverContent {
@@ -80,14 +77,28 @@ impl Server {
                     });
                 }
             }
-        } else if node.kind() == "type" {
-            let name = String::from_utf8(document.content[range].to_vec()).ok()?;
-            if let Some(desc) = PRIMITIVE_TYPES.get(name.as_str()) {
-                return Some(HoverContent {
-                    code: name,
-                    text: desc.to_string(),
-                });
-            }
+        }
+
+        let name = String::from_utf8(document.content[node.byte_range()].to_vec()).ok()?;
+        log::info!("{}", name);
+        if let Some(desc) = KEYWORDS.get(name.as_str()) {
+            return Some(HoverContent {
+                code: name.to_string(),
+                text: desc.to_string(),
+            });
+        }
+        if let Some(desc) = PRIMITIVE_TYPES.get(name.as_str()) {
+            return Some(HoverContent {
+                code: name.to_string(),
+                text: desc.to_string(),
+            });
+        }
+
+        if let Some(snippet) = STATEMENT_SNIPPETS.get(name.as_str()) {
+            return Some(HoverContent {
+                code: snippet.label.to_string(),
+                text: snippet.doc.to_string(),
+            })
         }
 
         None
@@ -129,6 +140,11 @@ impl Server {
             .root_node()
             .named_descendant_for_point_range(point, point)
             .unwrap();
+
+        let node = match node.kind() {
+            "if_statement" | "while_statement" | "return_statement" | "empty_return" | "unary_expression" => node.child(0).unwrap(),
+            _ => node,
+        };
 
         let range = node.range();
 

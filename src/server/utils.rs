@@ -1,3 +1,7 @@
+// For some reason, rust-analyzer doesn't identify uri using from_str
+#[allow(unused)]
+use std::str::FromStr;
+
 use lsp_types::Position;
 use tree_sitter::Node;
 

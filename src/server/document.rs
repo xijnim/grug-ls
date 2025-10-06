@@ -3,6 +3,12 @@ use std::{borrow::Borrow, collections::HashMap};
 use lazy_static::lazy_static;
 use lsp_types::Uri;
 
+pub struct SnippetCompletion {
+    pub label: &'static str,
+    pub snippet: &'static str,
+    pub doc: &'static str,
+}
+
 lazy_static! {
     pub static ref PRIMITIVE_TYPES: HashMap<&'static str, &'static str> = HashMap::from([
         ("resource", "A resource, such as an image or audio file"),
@@ -16,7 +22,35 @@ lazy_static! {
             "entity",
             "Holds names of types of entities (e.g. modname:entityname)"
         ),
+        ("bool", "Represents a value that is either true or false"),
         ("string", "Represents text"),
+    ]);
+
+    pub static ref KEYWORDS: HashMap<&'static str, &'static str> = HashMap::from([
+        ("true", " A value of type `bool` representing logical **true**."),
+        ("false", " A value of type `bool` representing logical **false**."),
+        ("me", "The current entity id"),
+        ("or", "Logical or. Only true if at least 1 of the values are true."),
+        ("and", "Logical and. Only true when both values are true."),
+        ("not", "Unary operator; inverts the input (i.e. `true` goes to `false`, and `false goes to `true`)")
+    ]);
+
+    pub static ref STATEMENT_SNIPPETS: HashMap<&'static str, SnippetCompletion> = HashMap::from([
+        ("if", SnippetCompletion {
+            label: "if",
+            snippet: "if ${1:condition} {\n\t$0\n}",
+            doc: "Executes code if the condition is true",
+        }),
+        ("while", SnippetCompletion {
+            label: "while",
+            snippet: "while ${1:condition} {\n\t$0\n}",
+            doc: "Continues repeating code while the condition is true",
+        }),
+        ("return", SnippetCompletion {
+            label: "return",
+            snippet: "return ${1:value}",
+            doc: "Stops executing the current function, and returns a specific value",
+        }),
     ]);
 }
 

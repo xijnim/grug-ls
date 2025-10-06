@@ -5,36 +5,10 @@ use lsp_types::{
 };
 
 use crate::server::{
-    Server,
-    document::{Document, PRIMITIVE_TYPES},
-    utils::{get_nearest_node, get_spot_info},
+    document::{Document, KEYWORDS, PRIMITIVE_TYPES, STATEMENT_SNIPPETS}, utils::{get_nearest_node, get_spot_info}, Server
 };
 
 use log::info;
-
-struct SnippetCompletion {
-    label: &'static str,
-    snippet: &'static str,
-    doc: &'static str,
-}
-
-const KEYWORD_COMPLETIONS: [SnippetCompletion; 3] = [
-    SnippetCompletion {
-        label: "if",
-        snippet: "if ${1:condition} {\n\t$0\n}",
-        doc: "Executes code if the condition is true",
-    },
-    SnippetCompletion {
-        label: "while",
-        snippet: "while ${1:condition} {\n\t$0\n}",
-        doc: "Continues repeating code while the condition is true",
-    },
-    SnippetCompletion {
-        label: "return",
-        snippet: "return ${1:value}",
-        doc: "Stops executing the current function, and returns a specific value",
-    },
-];
 
 impl Server {
     pub fn get_completion(
@@ -94,7 +68,7 @@ impl Server {
             });
         }
 
-        for snippet in KEYWORD_COMPLETIONS.iter() {
+        for snippet in STATEMENT_SNIPPETS.values() {
             let markup = MarkupContent {
                 kind: MarkupKind::Markdown,
                 value: snippet.doc.to_string(),
@@ -107,6 +81,19 @@ impl Server {
                 documentation: Some(Documentation::MarkupContent(markup)),
                 ..Default::default()
             })
+        }
+
+        for (name, desc) in KEYWORDS.iter() {
+            let markup = MarkupContent {
+                kind: MarkupKind::Markdown,
+                value: desc.to_string(),
+            };
+            items.push(CompletionItem {
+                label: name.to_string(),
+                kind: Some(CompletionItemKind::KEYWORD),
+                documentation: Some(Documentation::MarkupContent(markup)),
+                ..Default::default()
+            });
         }
 
         if "source_file"
@@ -187,7 +174,7 @@ impl Server {
         }
         let node = get_nearest_node(document, params.text_document_position.position);
 
-        let is_string = node.kind() == "string";
+        let is_string = node.kind() == "string" || node.kind() == "comment";
 
         let completion = if is_string {
             Vec::new()
