@@ -60,7 +60,7 @@ impl Server {
             }
             "identifier" | "number" | "type" | "on_identifier" | "helper_identifier"
             | "comment" | "me" | "+" | "-" | "*" | "/" | "string" | "not" | "empty_return"
-            | "<" | ">" | "<=" | ">=" | "==" | "and" | "or" | "boolean" => {
+            | "<" | ">" | "<=" | ">=" | "==" | "!=" | "and" | "or" | "boolean" => {
                 let text_bytes = &content[node.byte_range()];
 
                 let text: String = text_bytes
