@@ -333,8 +333,11 @@ impl Server {
         let range = document.tree.root_node().range();
         let range = treesitter_range_to_lsp(&range);
 
-        let new_lines: Vec<String> =
+        let mut new_lines: Vec<String> =
             Self::format_node(&document.content, &document.tree.root_node());
+
+        new_lines.push("".to_string());
+        new_lines.push("".to_string());
 
         let string = new_lines.join("\n");
         let edit = TextEdit::new(range, string);
