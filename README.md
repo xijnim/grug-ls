@@ -11,7 +11,6 @@ Or you can build it from source
 ```bash
 git clone git@github.com:xijnim/grug-ls.git
 cd grug-ls
-cargo build
 ```
 
 Then build the project
